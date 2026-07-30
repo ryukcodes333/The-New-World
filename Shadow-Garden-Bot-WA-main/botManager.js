@@ -38,7 +38,7 @@ function wrapSendForName(sock, entry) {
   const original = sock.sendMessage.bind(sock)
   sock.sendMessage = (jid, content, options) => {
     try {
-      const name = entry.name || 'Aqua'
+      const name = entry.name || 'Misa'
       if (content && typeof content === 'object') {
         if (typeof content.text === 'string') content = { ...content, text: applyBotName(content.text, name) }
         if (typeof content.caption === 'string') content = { ...content, caption: applyBotName(content.caption, name) }
@@ -65,7 +65,7 @@ async function startPairedBot(phone, { pairedBy, onCode, onStatus } = {}) {
   const entry = {
     phone,
     sock: null,
-    name: record?.name || 'Aqua',
+    name: record?.name || 'Misa',
     menuImage: record?.menuImage || null,
     menuImageMime: record?.menuImageMime || null,
     pairingCode: null,
@@ -145,7 +145,7 @@ async function startPairedBot(phone, { pairedBy, onCode, onStatus } = {}) {
           await handleMessage(sock, m, {
             isMainBot: false,
             phone,
-            name: entry.name || 'Aqua',
+            name: entry.name || 'Misa',
             menuImage: entry.menuImage || null,
             menuImageMime: entry.menuImageMime || null,
           })
