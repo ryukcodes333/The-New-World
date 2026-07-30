@@ -754,6 +754,11 @@ app.get('/pokemon/:id', (req, res) => {
 
 // OTP sender — called by the web app's /api/auth/request-otp route
 app.post('/send-otp', async (req, res) => {
+  const secret = req.headers['x-internal-secret']
+  if (!process.env.INTERNAL_SECRET || secret !== process.env.INTERNAL_SECRET) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' })
+  }
+
   const { phone, otp } = req.body || {}
   if (!phone || !otp) {
     return res.status(400).json({ ok: false, error: 'Missing phone or otp' })
