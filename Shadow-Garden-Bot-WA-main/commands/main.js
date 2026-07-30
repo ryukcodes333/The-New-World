@@ -48,8 +48,8 @@ module.exports = {
   async menu({ sock, msg, jid, sender, pushName, botIdentity }) {
     const userName = pushName || sender || 'Traveller'
     const menuText =
-      `Hᴇʏʏʏʏʏ ${userName}... ɪ'ᴍ Aǫᴜᴀ ꜰʀᴏᴍ ᴛʜᴇ 𝐊𝚯𝐍𝚯𝐒𝐔𝐁𝚫 ᴄᴏᴍᴜɴɪᴛʏ ɴɪᴄᴇ ᴛᴏ ᴍᴇᴇᴛ ʏᴏᴜ!\n\n` +
-      `Cʜᴇᴄᴋ ʙᴇʟᴏᴡ ғᴏʀ ᴀᴠᴀɪʟᴀʙʟᴇ ᴄᴏᴍᴍᴀɴᴅs ✦\n\n` +
+      `Hiiiii~ ${userName}! ♡ I'm Misa from the 𝕿𝖍𝖊 𝕹𝖊𝖜 𝖂𝖔𝖗𝖑𝖉! Eee~ It's sooo nice to meet you!! ✨\n\n` +
+      `Take a peek below, okay? I've got lots of fun commands waiting just for you~ ♡\n\n` +
 
       `*⚙️ ADMIN ⚙️*\n` +
       `┃\n` +
@@ -349,21 +349,21 @@ module.exports = {
 
   async ping({ sock, msg, jid }) {
     const start = Date.now()
-    await sock.sendMessage(jid, { text: `Aqua's here!\n> ${Date.now() - start}ms` }, { quoted: msg })
+    await sock.sendMessage(jid, { text: `Misa's here!\n> ${Date.now() - start}ms` }, { quoted: msg })
   },
 
   async speed({ sock, msg, jid }) {
     const start = Date.now()
-    await sock.sendMessage(jid, { text: '⚡ Testing...' }, { quoted: msg })
-    await sock.sendMessage(jid, { text: `⚡ Done in ${Date.now() - start}ms` }, { quoted: msg })
+    await sock.sendMessage(jid, { text: 'Please wait...' }, { quoted: msg })
+    await sock.sendMessage(jid, { text: `Oi I'm fast!! ${Date.now() - start}ms` }, { quoted: msg })
   },
 
   async runtime({ reply }) {
-    await reply(`⏱️ Runtime: ${uptime()}`)
+    await reply(`*gasps* I've been working for ${uptime()}!`)
   },
 
   async uptime({ reply }) {
-    await reply(`⏱️ Uptime: ${uptime()}`)
+    await reply(`Oi oi i need some sleep, i've been up for ${uptime()}!`)
   },
 
   async repo({ sock, jid, msg, reply }) {
@@ -371,7 +371,7 @@ module.exports = {
       `This bot is a private project built and maintained by its owner. The source code is not publicly available and there is currently no public repository.\n\n` +
       `If you encounter bugs, have suggestions, or need assistance, feel free to join the community below. Our moderators are available to help and can forward important reports or feedback directly to the owner.\n\n` +
       `*🔗 Community:*\n` +
-      `https://chat.whatsapp.com/LooPVxz9JVXLXu9Zk5jp1q\n\n` +
+      `https://chat.whatsapp.com/GzBTDYIfOzd3GhcGiMESpw\n\n` +
       `> *Thank you for supporting the project! ❤️*`
     try {
       await sock.sendMessage(jid, { image: { url: MENU_IMAGE }, caption: text }, { quoted: msg })
