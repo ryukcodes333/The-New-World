@@ -61,10 +61,6 @@ module.exports = {
       `┃ ⤷ .clearwarns @user\n` +
       `┃ ⤷ .promote @user\n` +
       `┃ ⤷ .demote @user\n` +
-      `┃ ⤷ .ban @user\n` +
-      `┃ ⤷ .unban @user\n` +
-      `┃ ⤷ .addmod @user\n` +
-      `┃ ⤷ .removemod @user\n` +
       `┃ ⤷ .lockgroup\n` +
       `┃ ⤷ .unlockgroup\n` +
       `┃ ⤷ .setname <name>\n` +
@@ -79,7 +75,7 @@ module.exports = {
       `┃ ⤷ .goodbye on/off\n` +
       `┃ ⤷ .autoreply on/off\n` +
       `┃ ⤷ .active\n` +
-      `┃ �� .resetlink\n` +
+      `┃ ⤷ .resetlink\n` +
       `┃ ⤷ .revoke\n` +
       `┃ ⤷ .invitelink\n` +
       `┃ ⤷ .stafflist\n` +
@@ -233,12 +229,7 @@ module.exports = {
 
       `*⬇️ DOWNLOADER ⬇️*\n` +
       `┃\n` +
-      `┃ ⤷ .play <song>\n` +
-      `┃ ⤷ .ytmp3 <link>\n` +
-      `┃ ⤷ .ytmp4 <link>\n` +
-      `┃ ⤷ .tiktok <link>\n` +
-      `┃ ⤷ .instagram <link>\n` +
-      `┃ ⤷ .facebook <link>\n` +
+      `┃ 🚧 This section is under development.\n` +
       `┃\n` +
       `╰━━━━━━━━━━━━━━━━\n\n` +
 
@@ -324,14 +315,6 @@ module.exports = {
       `┃ ⤷ .night\n` +
       `┃ ⤷ .sunset\n` +
       `┃ ⤷ .rain\n` +
-      `┃\n` +
-      `╰━━━━━━━━━━━━━━━━\n\n` +
-
-      `*💸 PAYMENTS 💸*\n` +
-      `┃\n` +
-      `┃ ⤷ .pay @user <amount>\n` +
-      `┃ ⤷ .confirmpy —\n` +
-      `┃ ⤷ .cooldowns / .cds\n` +
       `┃\n` +
       `╰━━━━━━━━━━━━━━━━`
 
