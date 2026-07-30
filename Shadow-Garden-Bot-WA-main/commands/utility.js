@@ -1,0 +1,419 @@
+const axios = require('axios')
+const { downloadMediaMessage } = require('@whiskeysockets/baileys')
+
+async function getImageBuffer(sock, msg) {
+  const imgMsg =
+    msg.message?.imageMessage ||
+    msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage
+  if (!imgMsg) return null
+  const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage
+  const targetMsg = quoted
+    ? {
+        message: quoted,
+        key: {
+          remoteJid: msg.key.remoteJid,
+          id: msg.message.extendedTextMessage.contextInfo.stanzaId,
+          participant: msg.message.extendedTextMessage.contextInfo.participant,
+        },
+      }
+    : msg
+  return downloadMediaMessage(targetMsg, 'buffer', {}, {
+    logger: { level: () => {}, info: () => {}, warn: () => {}, error: () => {} },
+    reuploadRequest: sock.updateMediaMessage,
+  })
+}
+
+module.exports = {
+  async translate({ reply, args }) {
+    const text = args.slice(1).join(' ')
+    const lang = args[0]?.toLowerCase() || 'en'
+    if (!text) return reply('⚠️ Usage: .translate <lang> <text>\n\nExample: .translate fr Hello world')
+    try {
+      const res = await axios.get(`https://api.mymemory.translated.net/get`, {
+        params: { q: args.slice(1).join(' '), langpair: `auto|${lang}` },
+        timeout: 10000,
+      })
+      const result = res.data?.responseData?.translatedText
+      if (!result) return reply('📚 Unsupported language or nothing to translate.')
+      await reply(
+        `🌐 *Translation Complete*\n\n` +
+        `📝 Original\n└ ${args.slice(1).join(' ')}\n\n` +
+        `🔄 ${lang.toUpperCase()}\n└ ${result}`
+      )
+    } catch (e) { await reply(`⚠️ Failed: ${e.message}`) }
+  },
+  async tr(ctx) { return module.exports.translate(ctx) },
+
+  async tts({ sock, msg, jid, reply, args }) {
+    const text = args.join(' ')
+    if (!text) return reply('⚠️ Usage: .tts <text>')
+    try {
+      const url  = `https://api.voicerss.org/?key=free&hl=en-us&src=${encodeURIComponent(text)}&f=16khz_16bit_mono`
+      const res  = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000 })
+      await sock.sendMessage(jid, { audio: Buffer.from(res.data), mimetype: 'audio/mpeg', ptt: false }, { quoted: msg })
+    } catch {
+      await reply(`🔊 TTS: "${text}"\n\n(Audio unavailable right now)`)
+    }
+  },
+  async say(ctx) { return module.exports.tts(ctx) },
+
+  async tovn({ sock, msg, jid, reply, args }) {
+    const text = args.join(' ')
+    if (!text) return reply('⚠️ Usage: .tovn <text>')
+    try {
+      const url = `https://api.voicerss.org/?key=free&hl=en-us&src=${encodeURIComponent(text)}&f=16khz_16bit_mono`
+      const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 15000 })
+      await sock.sendMessage(jid, { audio: Buffer.from(res.data), mimetype: 'audio/mpeg', ptt: true }, { quoted: msg })
+    } catch {
+      await reply(`🔊 VN: "${text}"\n\n(Audio unavailable)`)
+    }
+  },
+
+  async tourl({ reply, args }) {
+    const text = args.join(' ')
+    if (!text) return reply('⚠️ Usage: .tourl <long url>')
+    try {
+      const res = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(text)}`, { timeout: 10000 })
+      await reply(`🔗 *Short URL*\n\n${res.data}`)
+    } catch { await reply('⚠️ URL shortening failed') }
+  },
+  async tinyurl(ctx) { return module.exports.tourl(ctx) },
+  async shorturl(ctx) { return module.exports.tourl(ctx) },
+
+  async readmore({ sock, msg, jid, args }) {
+    const text = args.join(' ')
+    if (!text) return sock.sendMessage(jid, { text: '⚠️ Usage: .readmore <text>' }, { quoted: msg })
+    const hidden = '\u200e'.repeat(4001)
+    await sock.sendMessage(jid, { text: `${text}${hidden}` }, { quoted: msg })
+  },
+
+  async qrcode({ sock, msg, jid, reply, args }) {
+    const text = args.join(' ')
+    if (!text) return reply('⚠️ Usage: .qrcode <text>')
+    try {
+      const QRCode = require('qrcode')
+      const buffer = await QRCode.toBuffer(text, { width: 400, margin: 2 })
+      await sock.sendMessage(jid, { image: buffer, caption: `📱 QR Code\n\n${text}` }, { quoted: msg })
+    } catch (e) { await reply(`⚠️ Failed: ${e.message}`) }
+  },
+
+  async readqr({ sock, msg, jid, reply }) {
+    await reply('📷 QR reading from images isn\'t supported in this version. Try a QR scanner app.')
+  },
+
+  async lyrics({ reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('⚠️ Usage: .lyrics <song name>')
+    try {
+      const parts = query.split('-').map(s => s.trim())
+      const artist = parts.length > 1 ? parts[0] : ''
+      const title  = parts.length > 1 ? parts.slice(1).join('-').trim() : query
+      const url    = artist
+        ? `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
+        : `https://api.lyrics.ovh/suggest/${encodeURIComponent(query)}`
+
+      if (!artist) {
+        const sugRes = await axios.get(url, { timeout: 10000 })
+        const first  = sugRes.data?.data?.[0]
+        if (!first) return reply('⚠️ Song not found.')
+        const lyricRes = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(first.artist.name)}/${encodeURIComponent(first.title)}`, { timeout: 10000 })
+        const lyrics   = lyricRes.data?.lyrics?.slice(0, 2000)
+        if (!lyrics) return reply('⚠️ Lyrics not found.')
+        return reply(`🎵 *${first.title}* by ${first.artist.name}\n\n${lyrics}${lyricRes.data.lyrics.length > 2000 ? '\n\n...(truncated)' : ''}`)
+      }
+
+      const res    = await axios.get(url, { timeout: 10000 })
+      const lyrics = res.data?.lyrics?.slice(0, 2000)
+      if (!lyrics) return reply('⚠️ Lyrics not found.')
+      await reply(`🎵 *${title}*${artist ? ` by ${artist}` : ''}\n\n${lyrics}${res.data.lyrics.length > 2000 ? '\n\n...(truncated)' : ''}`)
+    } catch { await reply('❌ Lyrics not found. Try: .lyrics artist - song') }
+  },
+
+  async movie({ sock, msg, jid, reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('Usage: .movie <title>')
+    try {
+      await reply('Searching...')
+      const key = process.env.OMDB_KEY || 'b4fe75e5'
+      let m = null
+      try {
+        const r = await axios.get('https://www.omdbapi.com/', { params: { apikey: key, t: query, plot: 'short' }, timeout: 12000 })
+        if (r.data && r.data.Response === 'True') m = r.data
+      } catch (e1) {}
+      if (!m) {
+        try {
+          const r = await axios.get('https://www.omdbapi.com/', { params: { apikey: key, s: query, type: 'movie' }, timeout: 12000 })
+          const first = r.data && r.data.Search && r.data.Search[0]
+          if (first) {
+            const r2 = await axios.get('https://www.omdbapi.com/', { params: { apikey: key, i: first.imdbID, plot: 'short' }, timeout: 12000 })
+            if (r2.data && r2.data.Response === 'True') m = r2.data
+          }
+        } catch (e2) {}
+      }
+      if (m) {
+        const stars = (m.Actors || 'N/A').split(',').slice(0,3).join(',')
+        const awards = (m.Awards && m.Awards !== 'N/A') ? m.Awards.slice(0,80) : ''
+        const text = [
+          '*' + m.Title + '* (' + m.Year + ')',
+          '',
+          'Genre: ' + (m.Genre || 'N/A'),
+          'IMDb: ' + (m.imdbRating || 'N/A') + '/10',
+          'Runtime: ' + (m.Runtime || 'N/A'),
+          'Director: ' + (m.Director || 'N/A'),
+          'Stars: ' + stars,
+          '',
+          'Plot:',
+          m.Plot || 'N/A',
+          '',
+          awards,
+        ].join(String.fromCharCode(10))
+        if (m.Poster && m.Poster !== 'N/A') {
+          try {
+            const imgRes = await axios.get(m.Poster, { responseType: 'arraybuffer', timeout: 12000 })
+            return await sock.sendMessage(jid, { image: Buffer.from(imgRes.data), caption: text }, { quoted: msg })
+          } catch (ei) {}
+        }
+        return await reply(text)
+      }
+      await reply('Movie not found. Try a more specific title.')
+    } catch (e) { await reply('Error: ' + e.message) }
+  },
+
+  async ytsearch({ reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('⚠️ Usage: .ytsearch <query>')
+    try {
+      const res  = await axios.get(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000,
+      })
+      const ids  = [...res.data.matchAll(/videoId\\?":\\?"([a-zA-Z0-9_-]{11})\\?"/g)].map(m => m[1])
+      const unique = [...new Set(ids)].slice(0, 5)
+      if (!unique.length) return reply('⚠️ No results found.')
+      const links = unique.map((id, i) => `${i + 1}. https://youtu.be/${id}`).join('\n')
+      await reply(`🔍 *YouTube: ${query}*\n\n${links}`)
+    } catch { await reply('⚠️ Search failed.') }
+  },
+
+  async google({ reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('⚠️ Usage: .google <query>')
+    await reply(`🔍 Search: https://www.google.com/search?q=${encodeURIComponent(query)}`)
+  },
+
+  async weather({ reply, args }) {
+    const location = args.join(' ')
+    if (!location) return reply('⚠️ Usage: .weather <city>')
+    try {
+      const res  = await axios.get(`https://wttr.in/${encodeURIComponent(location)}?format=j1`, { timeout: 10000 })
+      const cur  = res.data?.current_condition?.[0]
+      const area = res.data?.nearest_area?.[0]
+      if (!cur) return reply('📍 City not found. Check spelling.')
+      const city = area?.areaName?.[0]?.value || location
+      await reply(
+        `🌤️ *Weather in ${city}*\n\n` +
+        `🌡️ ${cur.temp_C}°C • ${cur.weatherDesc?.[0]?.value || 'N/A'}\n\n` +
+        `💧 Humidity\n└ ${cur.humidity}%\n\n` +
+        `💨 Wind\n└ ${cur.windspeedKmph} km/h\n\n` +
+        `🌡️ Feels Like\n└ ${cur.FeelsLikeC || cur.temp_C}°C`
+      )
+    } catch { await reply('⚠️ Weather service unavailable right now.') }
+  },
+
+  async wiki({ reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('⚠️ Usage: .wiki <topic>')
+    try {
+      const res = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`, { timeout: 10000 })
+      const p   = res.data
+      if (p.type === 'https://mediawiki.org/wiki/HyperSwitch/errors/not_found') return reply('📄 No page found for that topic.')
+      const link = p.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`
+      await reply(
+        `📚 *${p.title}*\n\n` +
+        `📖 Summary\n└ ${(p.extract?.slice(0, 400) || 'No info found')}\n\n` +
+        `🔗 Read More\n└ ${link}`
+      )
+    } catch { await reply('⚠️ Wikipedia unavailable right now.') }
+  },
+
+  async news({ reply, args }) {
+    const topic = args.join(' ') || 'world'
+    try {
+      const res = await axios.get(`https://gnews.io/api/v4/search?q=${encodeURIComponent(topic)}&lang=en&max=5&apikey=free`, { timeout: 10000 })
+      const articles = res.data?.articles?.slice(0, 5)
+      if (!articles?.length) {
+        return reply(`📰 Search for *${topic}* news:\nhttps://news.google.com/search?q=${encodeURIComponent(topic)}`)
+      }
+      const lines = articles.map((a, i) => `${i + 1}️⃣ *${a.title}*\n└ ${a.url}`).join('\n\n')
+      await reply(`📰 *${topic.charAt(0).toUpperCase() + topic.slice(1)} News*\n\n${lines}`)
+    } catch {
+      await reply(`📰 Search for *${topic}* news:\nhttps://news.google.com/search?q=${encodeURIComponent(topic)}`)
+    }
+  },
+
+  async ssweb({ sock, msg, jid, reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .ssweb <url>')
+    try {
+      const ss  = await axios.get(`https://image.thum.io/get/width/1280/crop/720/${encodeURIComponent(url)}`, {
+        responseType: 'arraybuffer', timeout: 20000,
+      })
+      await sock.sendMessage(jid, { image: Buffer.from(ss.data), caption: `🌐 ${url}` }, { quoted: msg })
+    } catch { await reply(`⚠️ Screenshot failed for that URL.`) }
+  },
+
+  async myip({ reply }) {
+    try {
+      const res = await axios.get('https://api.ipify.org?format=json', { timeout: 8000 })
+      await reply(`🌐 Bot IP: ${res.data.ip}`)
+    } catch { await reply('⚠️ Couldn\'t get IP') }
+  },
+
+  async ytmp4({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .ytmp4 <youtube url>')
+    try {
+      const apiUrl = `https://co.wuk.sh/api/json`
+      const res = await axios.post(apiUrl, {
+        url, vCodec: 'h264', vQuality: '720', aFormat: 'mp3', isAudioOnly: false,
+      }, {
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        timeout: 20000,
+      })
+      if (res.data?.url) {
+        await reply(`🎬 *Download ready!*\n\n${res.data.url}`)
+      } else {
+        await reply('⚠️ Download failed. Try y2mate.com instead.')
+      }
+    } catch { await reply(`⚠️ Download failed.\n\n💡 Try: https://y2mate.com`) }
+  },
+
+  async ytmp3({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .ytmp3 <youtube url>')
+    try {
+      const res = await axios.post(`https://co.wuk.sh/api/json`, {
+        url, aFormat: 'mp3', isAudioOnly: true,
+      }, {
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        timeout: 20000,
+      })
+      if (res.data?.url) {
+        await reply(`🎵 *Download ready!*\n\n${res.data.url}`)
+      } else {
+        await reply('⚠️ Download failed. Try y2mate.com instead.')
+      }
+    } catch { await reply(`⚠️ Download failed.\n\n💡 Try: https://y2mate.com`) }
+  },
+
+  async tiktok({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .tiktok <tiktok url>')
+    await reply(`📥 TikTok downloader:\nhttps://snaptik.app/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async instagram({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .instagram <instagram url>')
+    await reply(`📥 Instagram downloader:\nhttps://snapinsta.app/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async facebook({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .facebook <facebook url>')
+    await reply(`📥 Facebook downloader:\nhttps://fdownloader.net/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async twitter({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .twitter <tweet url>')
+    await reply(`📥 Twitter downloader:\nhttps://twittervideodownloader.com/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async threads({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .threads <threads url>')
+    await reply(`📥 Threads downloader:\nhttps://threadsaver.com/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async capcut({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .capcut <capcut url>')
+    await reply(`📥 CapCut downloader:\nhttps://capcutdownloader.io/?url=${encodeURIComponent(url || '')}`)
+  },
+
+  async mediafire({ reply, args }) {
+    const url = args[0]
+    if (!url) return reply('⚠️ Usage: .mediafire <mediafire url>')
+    await reply(`📥 MediaFire link:\n${url}\n\nOpen it directly in your browser to download.`)
+  },
+
+  async apk({ reply, args }) {
+    const name = args.join(' ')
+    if (!name) return reply('⚠️ Usage: .apk <app name>')
+    await reply(`📱 Search for *${name}* APK:\nhttps://apkpure.com/search?q=${encodeURIComponent(name)}`)
+  },
+
+  async pinterest({ reply, args }) {
+    const query = args.join(' ')
+    if (!query) return reply('⚠️ Usage: .pinterest <query>')
+    await reply(`📌 Pinterest search:\nhttps://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`)
+  },
+
+  async wallpaper({ sock, msg, jid, reply, args }) {
+    const query = args.join(' ') || 'nature landscape dark'
+    try {
+      const res = await axios.get(`https://image.pollinations.ai/prompt/${encodeURIComponent(query + ' high quality wallpaper 4k')}?width=1920&height=1080&nologo=true&model=flux&seed=${Math.floor(Math.random() * 99999)}`, {
+        responseType: 'arraybuffer', timeout: 60000,
+      })
+      await sock.sendMessage(jid, { image: Buffer.from(res.data), caption: `🖼️ Wallpaper: ${query}` }, { quoted: msg })
+    } catch { await reply(`⚠️ Couldn't get wallpaper right now.`) }
+  },
+
+  async smeme({ sock, msg, jid, reply }) {
+    const ctx    = msg.message?.extendedTextMessage?.contextInfo
+    const quoted = ctx?.quotedMessage
+    if (!quoted?.imageMessage) return reply('↩️ Reply to an image with .smeme <top text> / <bottom text>')
+    await reply('🎭 Meme maker coming soon! Reply to image.')
+  },
+
+  async qc({ sock, msg, jid, reply }) {
+    const text = msg.message?.extendedTextMessage?.text ||
+                 msg.message?.extendedTextMessage?.contextInfo?.quotedMessage?.conversation
+    if (!text) return reply('↩️ Reply to a text message with .qc to create a quote card')
+    try {
+      const QRCode = require('qrcode')
+      const canvas = `https://api.quotable.io/random`
+      const res    = await axios.get(canvas, { timeout: 8000 })
+      await reply(`💬 *Quote Card*\n\n_${text}_\n\n— Konosuba`)
+    } catch {
+      await reply(`💬 _${text}_\n\n— Konosuba`)
+    }
+  },
+
+  async emojimix({ reply, args }) {
+    const emojis = args.join(' ').trim()
+    if (!emojis) return reply('⚠️ Usage: .emojimix 😀 + 🔥')
+    await reply(`🎨 Emoji mix: ${emojis}\n\nTry: https://emojikitchen.dev/`)
+  },
+
+  async ping({ reply }) {
+    const start = Date.now()
+    await reply(
+      `🏓 *Pong!*\n\n` +
+      `⚡ Response Time\n└ ${Date.now() - start}ms`
+    )
+  },
+
+  async uptime({ reply }) {
+    const ms = process.uptime() * 1000
+    const d  = Math.floor(ms / 86400000)
+    const h  = Math.floor((ms % 86400000) / 3600000)
+    const m  = Math.floor((ms % 3600000) / 60000)
+    await reply(
+      `⏱️ *Bot Uptime*\n\n` +
+      `📅 ${d}d\n` +
+      `🕒 ${h}h\n` +
+      `⏰ ${m}m`
+    )
+  },
+}
