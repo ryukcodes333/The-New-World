@@ -1,6 +1,6 @@
 const mongoose = require('mongoose')
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://konosubacommunity1:kono%2Esuba001@cluster-kono.41yglcv.mongodb.net/?appName=Cluster-kono'
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://TheNewWorld:Adeola123%23@thenewworld.gqeitiy.mongodb.net/?appName=TheNewWorld'
 
 let isConnected = false
 
