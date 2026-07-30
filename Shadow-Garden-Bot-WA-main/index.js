@@ -28,8 +28,8 @@ const {
   })
 
   const PREFIX = '.'
-  const OWNER_LID = '75454690107579@lid'
-  const BOT_NAME = 'Alpha'
+  const OWNER_LID = '6125344813179@lid'
+  const BOT_NAME = 'Misa'
   const START_TIME = Date.now()
   const MAX_RECONNECT_ATTEMPTS = 10
 
