@@ -1,7 +1,7 @@
 // Shared helpers for the multi-bot renaming feature (.name command).
-// Lets a paired bot fully replace every user-facing mention of "Aqua" with
+// Lets a paired bot fully replace every user-facing mention of "Misa" with
 // its own configured name, including the stylized small-caps menu greeting.
-// The MAIN bot never uses this — it always stays "Aqua".
+// The MAIN bot never uses this — it always stays "Misa".
 
 const SMALL_CAPS = {
   a: 'ᴀ', b: 'ʙ', c: 'ᴄ', d: 'ᴅ', e: 'ᴇ', f: 'ꜰ', g: 'ɢ', h: 'ʜ', i: 'ɪ', j: 'ᴊ',
@@ -24,13 +24,13 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-// Replaces every mention of "Aqua" (plain + the stylized small-caps variant
+// Replaces every mention of "Misa" (plain + the stylized small-caps variant
 // used in the menu greeting) with the given bot name. No-op for the main bot.
 function applyBotName(text, name) {
-  if (!text || !name || name.toLowerCase() === 'aqua') return text
-  let out = String(text).replace(/\baqua\b/gi, name)
-  const stylizedAqua = toSmallCaps('Aqua') // "Aǫᴜᴀ"
-  if (out.includes(stylizedAqua)) out = out.split(stylizedAqua).join(toSmallCaps(name))
+  if (!text || !name || name.toLowerCase() === 'misa') return text
+  let out = String(text).replace(/\bmisa\b/gi, name)
+  const stylizedMisa = toSmallCaps('Misa') // stylized small-caps version
+  if (out.includes(stylizedMisa)) out = out.split(stylizedMisa).join(name)
   return out
 }
 
