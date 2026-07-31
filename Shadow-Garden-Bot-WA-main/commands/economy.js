@@ -592,7 +592,7 @@ module.exports = {
       sections += `\n${typeEmojis[type]||'🛒'} *${typeLabels[type]||type}*\n${lines}\n`
     }
     await reply(
-      `🏪 *Konosuba Market*\n\n` +
+      `🏪 *The New Market*\n\n` +
       `💰 Wallet: 🍎 ${(u.wallet||0).toLocaleString()} | 💎 Gems: ${u.gems||0}\n` +
       `━━━━━━━━━━━━━━━━━━━━` +
       sections +
