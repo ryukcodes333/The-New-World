@@ -719,12 +719,12 @@ module.exports = {
     const data = await fetchPokeData(id).catch(() => null)
 
     if (!data) {
-      pendingPokemon[jid] = { id, name: `Shadow-${id}`, types: ['Shadow'], baseXp: 60, spawnedAt: Date.now(), imageUrl: null, moves: ['Tackle'], abilities: ['Shadow Force'], height: '?', weight: '?' }
+      pendingPokemon[jid] = { id, name: `Shadow-${id}`, types: ['Shadow'], baseXp: 60, level: 20, spawnedAt: Date.now(), imageUrl: null, moves: ['Tackle'], abilities: ['Shadow Force'], height: '?', weight: '?' }
       setTimeout(() => { if (pendingPokemon[jid]?.id === id) delete pendingPokemon[jid] }, POKE_CATCH_WINDOW)
       return sock.sendMessage(jid, {
         text:
           `✨ *A wild Pokémon emerges!*\n\n` +
-          `❓ *Shadow-${id}* • Lv. ${randInt(3, 30)}\n` +
+          `❓ *Shadow-${id}* • Lv. 20\n` +
           `🔹 Unknown\n\n` +
           `*⚔️ Choose an action*\n` +
           `> *.dex* - View PokéLab data\n` +
@@ -734,11 +734,11 @@ module.exports = {
       }, { quoted: msg })
     }
 
-    pendingPokemon[jid] = { ...data, spawnedAt: Date.now() }
+    const wildLvl = 20
+    pendingPokemon[jid] = { ...data, level: wildLvl, spawnedAt: Date.now() }
     setTimeout(() => { if (pendingPokemon[jid]?.id === id) delete pendingPokemon[jid] }, POKE_CATCH_WINDOW)
 
     const rarity  = getRarity(data.baseXp)
-    const wildLvl = randInt(3, 30)
     const caption =
       `✨ *A wild Pokémon emerges!*\n\n` +
       `${rarity.emoji} *${data.name}* • Lv. ${wildLvl}\n` +
@@ -768,15 +768,15 @@ module.exports = {
     const data = await fetchPokeData(id).catch(() => null)
 
     if (!data) {
-      pendingPokemon[jid] = { id, name: `Shadow-${id}`, types: ['Shadow'], baseXp: 60, spawnedAt: Date.now(), imageUrl: null, moves: ['Tackle'], abilities: ['Shadow Force'], height: '?', weight: '?', location: 'Unknown' }
+      pendingPokemon[jid] = { id, name: `Shadow-${id}`, types: ['Shadow'], baseXp: 60, level: 20, spawnedAt: Date.now(), imageUrl: null, moves: ['Tackle'], abilities: ['Shadow Force'], height: '?', weight: '?', location: 'Unknown' }
       await sock.sendMessage(jid, {
         text: `🎊 *A wild Pokémon has appeared!*\n\n🆔 *Poke ID:* ${id}\n🔖 *Name:* Shadow-${id}\n\n💡 *Hint:*\n> Use *#catch <pokeslot> | <ball type>* to catch this pokemon`
       }, { quoted: msg })
       return
     }
 
-    pendingPokemon[jid] = { ...data, spawnedAt: Date.now() }
-    const caption = buildSpawnCaption(data)
+    pendingPokemon[jid] = { ...data, level: 20, spawnedAt: Date.now() }
+    const caption = buildSpawnCaption(data, { level: 20 })
 
     if (data.imageUrl) {
       try {
@@ -797,8 +797,8 @@ module.exports = {
     await reply(`🔍 Fetching *${nameOrId}* from PokéAPI...`)
     const data = await fetchPokeData(nameOrId).catch(() => null)
     if (!data) return reply(`📭 *${nameOrId}* not found on PokéAPI.`)
-    pendingPokemon[jid] = { ...data, spawnedAt: Date.now() }
-    const caption = buildSpawnCaption(data)
+    pendingPokemon[jid] = { ...data, level: 20, spawnedAt: Date.now() }
+    const caption = buildSpawnCaption(data, { level: 20 })
     try {
       await sock.sendMessage(jid, { image: { url: data.imageUrl }, caption }, { quoted: msg })
     } catch {
@@ -895,13 +895,15 @@ module.exports = {
     }
 
     try {
+      const caughtLevel = poke.level || 20
       await db.addPokemon(sender, {
         pokemon_id: poke.id, name: poke.name, types: poke.types,
-        level: 1, xp: 0, moves: poke.moves || [], abilities: poke.abilities || [],
+        level: caughtLevel, xp: poke.xp || 0, moves: poke.moves || [], abilities: poke.abilities || [],
         ball: ballKey, slot: inParty ? slot : null, in_party: inParty, base_xp: poke.baseXp,
         height: poke.height, weight: poke.weight, location: poke.location,
         hp: poke.hp || 45, attack: poke.attack || 45, defense: poke.defense || 45,
         sp_atk: poke.sp_atk || 45, sp_def: poke.sp_def || 45, speed: poke.speed || 45,
+        current_hp: calcMaxHp({ hp: poke.hp, level: caughtLevel }),
         nature: ['Hardy','Lonely','Brave','Adamant','Naughty','Bold','Docile','Relaxed','Impish','Lax','Timid','Hasty','Serious','Jolly','Naive','Modest','Mild','Quiet','Bashful','Rash','Calm','Gentle','Sassy','Careful','Quirky'][Math.floor(Math.random()*25)],
       })
     } catch {}
@@ -1288,8 +1290,8 @@ module.exports = {
         if (url) opponentAvatar = await downloadBuffer(url, 8000).catch(() => null)
       } catch {}
 
-      const cMaxHp = 200 + (myParty[0]?.level || 1) * 15
-      const oMaxHp = 200 + (theirParty[0]?.level || 1) * 15
+      const cMaxHp = calcMaxHp(myParty[0])
+      const oMaxHp = calcMaxHp(theirParty[0])
       const vsImg = await buildBattleChallenge({
         challengerName:      user?.name || sender,
         challengerAvatarBuf: challengerAvatar,
@@ -1335,8 +1337,8 @@ module.exports = {
 
       const cPoke = myParty[0]
       const oPoke = theirParty[0]
-      const cMaxHp = 200 + (cPoke.level || 1) * 15
-      const oMaxHp = 200 + (oPoke.level || 1) * 15
+      const cMaxHp = calcMaxHp(cPoke)
+      const oMaxHp = calcMaxHp(oPoke)
 
       const battle = {
         jid,
@@ -1435,7 +1437,7 @@ module.exports = {
       const others  = myParty.filter(p => p.name !== myPoke.name)
       if (!others.length) return reply(`⚠️ No other Pokémon to switch to!`)
       const list = others.map((p, i) => {
-        const hp = 200 + (p.level || 1) * 15
+        const hp = calcMaxHp(p)
         return `*${i + 1}.* ${p.name} Lv.${p.level || 1} | HP: ${hp}`
       }).join('\n')
       return reply(`🔄 *SWITCH POKÉMON*\n\n${list}\n\n_Type *#battle switch <number>* to switch._`)
@@ -1455,7 +1457,7 @@ module.exports = {
       const idx     = (parseInt(args[1]) || 1) - 1
       const newPoke = others[idx]
       if (!newPoke) return reply(`⚠️ Invalid selection.`)
-      const newMaxHp = 200 + (newPoke.level || 1) * 15
+      const newMaxHp = calcMaxHp(newPoke)
       battle[switchUsedKey] = true
       if (isChallenger) {
         battle.challengerPoke  = newPoke
@@ -1566,9 +1568,9 @@ module.exports = {
     if (party.length < gym.minPokemon) return reply(`❗ You need at least ${gym.minPokemon} healthy Pokémon to challenge ${gym.leader}!`)
 
     const myLead     = party[0]
-    const myMaxHp    = (myLead.hp || 45) + (myLead.level || 1) * 5
+    const myMaxHp    = calcMaxHp(myLead)
     const gymPoke    = gym.leaderPokemon[0]
-    const gymMaxHp   = (gymPoke.level || 12) * 8 + 30
+    const gymMaxHp   = calcMaxHp(gymPoke)
 
     pendingGymBattle[sender] = {
       gym,
@@ -1837,11 +1839,20 @@ module.exports = {
         types:       newData.types,
         moves:       evolvedMoves,
         abilities:   newData.abilities,
+        hp:          newData.hp,
+        attack:      newData.attack,
+        defense:     newData.defense,
+        sp_atk:      newData.sp_atk,
+        sp_def:      newData.sp_def,
+        speed:       newData.speed,
+        height:      newData.height,
+        weight:      newData.weight,
+        current_hp:  calcMaxHp({ hp: newData.hp, level: lvl }),
       })
     } catch {}
 
     const evoAbility = newData.abilities?.[0] || 'Unknown'
-    const ivPct      = Math.min(100, Math.round(((p.attack || 45) + (p.defense || 45) + (p.speed || 45)) / 3 / 45 * 100 * 0.7 + ((p.pokemon_id || 1) * 7 % 30)))
+    const ivPct      = Math.min(100, Math.round(((newData.attack || 45) + (newData.defense || 45) + (newData.speed || 45)) / 3 / 45 * 100 * 0.7 + ((newData.id || 1) * 7 % 30)))
 
     const caption =
       `✨ Evolution Complete!\n\n` +
@@ -1896,8 +1907,8 @@ module.exports = {
     ]
     const wild    = TRAIN_POOL[Math.floor(Math.random() * TRAIN_POOL.length)]
     const wildLvl = Math.max(1, myLvl - randInt(1, 5))
-    const myMaxHp  = (p.hp || 45) + myLvl * 5
-    const wildMaxHp = wildLvl * 8 + 25
+    const myMaxHp  = calcMaxHp(p)
+    const wildMaxHp = calcMaxHp({ hp: 45, level: wildLvl })
     const moves    = Array.isArray(p.moves) && p.moves.length ? p.moves.slice(0, 4) : ['Tackle', 'Growl']
 
     pendingTrainBattle[sender] = {
@@ -2228,7 +2239,7 @@ module.exports = {
     await reply(
       `📊 *DETAILED STATS - ${p.name.toUpperCase()}*\n\n` +
       `🆔 *No:* ${p.pokemon_id}\n🔮 *Level:* ${lvl}\n🪄 *XP:* ${p.xp || 0}/${lvl * 200}\n\n` +
-      `❤️ *HP:* ${200 + lvl * 15}\n⚔️ *ATK:* ${50 + lvl * 5}\n🛡️ *DEF:* ${40 + lvl * 4}\n💨 *SPD:* ${45 + lvl * 3}\n\n` +
+      `❤️ *HP:* ${calcMaxHp(p)}\n⚔️ *ATK:* ${calcStat(p.attack, lvl)}\n🛡️ *DEF:* ${calcStat(p.defense, lvl)}\n💨 *SPD:* ${calcStat(p.speed, lvl)}\n\n` +
       `🔄 *Type:* ${Array.isArray(p.types) ? p.types.join(' / ') : p.types}\n` +
       `📏 *Height:* ${p.height || '?'} m\n⚖️ *Weight:* ${p.weight || '?'} kg`
     )
@@ -2463,9 +2474,9 @@ module.exports = {
 
     const myPoke    = party[0]
     const myLevel   = myPoke.level || 1
-    const wildLevel = randInt(5, 45)
-    const myMaxHp   = 80 + myLevel * 12
-    const wildMaxHp = 60 + wildLevel * 8
+    const wildLevel = wild.level || 20
+    const myMaxHp   = calcMaxHp(myPoke)
+    const wildMaxHp = calcMaxHp(wild)
 
     const moves = (Array.isArray(myPoke.moves) && myPoke.moves.length >= 2)
       ? myPoke.moves.slice(0, 4)
@@ -2688,7 +2699,7 @@ module.exports = {
         }
         // ── Next gym Pokemon ───────────────────────────────
         const nextGymPoke = gym.leaderPokemon[gymState.gymPokeIdx]
-        const nextMaxHp   = (nextGymPoke.level || 10) * 8 + 30
+        const nextMaxHp   = calcMaxHp(nextGymPoke)
         gymState.gymPokemon = nextGymPoke
         gymState.gymHp      = nextMaxHp
         gymState.gymMaxHp   = nextMaxHp
