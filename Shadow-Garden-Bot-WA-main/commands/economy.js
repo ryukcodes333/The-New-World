@@ -164,63 +164,12 @@ module.exports = {
     const levelUp = xpResult.leveledUp
       ? `\n🆙 *LEVEL UP!* ${xpResult.oldLevel} → ${xpResult.newLevel} 🎊`
       : ''
+    const xpPart = dailyXp > 0 ? ` And gained ${dailyXp} XP!` : ''
     const dailyMsg = getResponse('daily', 'success') ||
-      `🌟 *Daily Reward Claimed!*\n\n💰 +£{coins}\n💎 +{gems} gems\n⭐ +{xp} XP\n🔥 Streak: {streak} days{levelUp}\n\n_Come back in 24 hours!_`
-    await reply(fillTemplate(dailyMsg, { coins, gems, xp: dailyXp, streak: newStreak, levelUp }))
+      `🎉 Congratulations! You've successfully claimed your daily reward of ${coins} 🍎!${xpPart} ✨${levelUp}`
+    await reply(fillTemplate(dailyMsg, { coins, gems, xp: dailyXp, streak: newStreak, levelUp, xpPart }))
   },
   async claim(ctx) { return module.exports.daily(ctx) },
-
-  // ── .weekly ──────────────────────────────────────────────────────────────
-  // Weekly = 5–7x daily reward
-  async weekly({ reply, sender, user }) {
-    const u = user || await db.getOrCreateUser(sender)
-    const remaining = await db.getCooldown(sender, 'weekly')
-    if (remaining > 0) {
-      const hrs  = Math.floor(remaining / 3600000)
-      const mins = Math.floor((remaining % 3600000) / 60000)
-      const secs = Math.floor((remaining % 60000) / 1000)
-      const duration = [hrs > 0 && `${hrs}h`, mins > 0 && `${mins}m`, (secs > 0 || (!hrs && !mins)) && `${secs}s`].filter(Boolean).join(' ')
-      const cdMsg = getResponse('weekly', 'cooldown') || `⏳ You are on cooldown for *{duration}*.`
-      return reply(fillTemplate(cdMsg, { hrs, mins, secs, duration }))
-    }
-    const coins = Math.floor(Math.random() * 201) + 350  // 350–550 base
-    const weeklyXp = 100
-    await db.updateUser(sender, { wallet: (u.wallet || 0) + coins })
-    const xpResult = await applyXP(sender, null, weeklyXp)
-    await db.setCooldown(sender, 'weekly', 7 * 24 * 3600)
-    await db.trackCurrencyGenerated(coins)
-    console.log(`[economy] weekly: ${sender} +£${coins} +${weeklyXp}XP`)
-    const levelUpW = xpResult.leveledUp ? `\n🆙 *LEVEL UP!* ${xpResult.oldLevel} → ${xpResult.newLevel} 🎊` : ''
-    const weeklyMsg = getResponse('weekly', 'success') ||
-      `📅 *Weekly Reward!*\n\n💰 +£{coins}\n⭐ +{xp} XP{levelUp}\n\n_Come back in 7 days!_`
-    await reply(fillTemplate(weeklyMsg, { coins: coins.toLocaleString(), xp: weeklyXp, levelUp: levelUpW }))
-  },
-
-  // ── .monthly ─────────────────────────────────────────────────────────────
-  // Monthly = 4–5x weekly reward
-  async monthly({ reply, sender, user }) {
-    const u = user || await db.getOrCreateUser(sender)
-    const remaining = await db.getCooldown(sender, 'monthly')
-    if (remaining > 0) {
-      const days = Math.floor(remaining / 86400000)
-      const hrs  = Math.floor((remaining % 86400000) / 3600000)
-      const mins = Math.floor((remaining % 3600000) / 60000)
-      const duration = [days > 0 && `${days}d`, hrs > 0 && `${hrs}h`, mins > 0 && `${mins}m`].filter(Boolean).join(' ') || '1m'
-      const cdMsg = getResponse('monthly', 'cooldown') || `⏳ You are on cooldown for *{duration}*.`
-      return reply(fillTemplate(cdMsg, { days, hrs, mins, duration }))
-    }
-    const coins = Math.floor(Math.random() * 1001) + 1750  // 1750–2750
-    const monthlyXp = 300
-    await db.updateUser(sender, { wallet: (u.wallet || 0) + coins })
-    const xpResult = await applyXP(sender, null, monthlyXp)
-    await db.setCooldown(sender, 'monthly', 30 * 24 * 3600)
-    await db.trackCurrencyGenerated(coins)
-    console.log(`[economy] monthly: ${sender} +£${coins} +${monthlyXp}XP`)
-    const levelUpM = xpResult.leveledUp ? `\n🆙 *LEVEL UP!* ${xpResult.oldLevel} → ${xpResult.newLevel} 🎊` : ''
-    const monthlyMsg = getResponse('monthly', 'success') ||
-      `🗓️ *Monthly Reward!*\n\n💰 +£{coins}\n⭐ +{xp} XP{levelUp}\n\n_Come back in 30 days!_`
-    await reply(fillTemplate(monthlyMsg, { coins: coins.toLocaleString(), xp: monthlyXp, levelUp: levelUpM }))
-  },
 
   // ── .work ────────────────────────────────────────────────────────────────
   // Low-medium income, reliable source
@@ -430,9 +379,9 @@ module.exports = {
       const stolen = Math.max(1, Math.floor(targetWallet * pct))
       await db.updateUser(tp,     { wallet: (tu.wallet || 0) - stolen })
       await db.updateUser(sender, { wallet: (u.wallet  || 0) + stolen })
-      console.log(`[economy] rob: ${sender} stole £${stolen} (${(pct*100).toFixed(1)}%) from ${tp}`)
+      console.log(`[economy] rob: ${sender} stole ${stolen} 🍎 (${(pct*100).toFixed(1)}%) from ${tp}`)
       const robWin = getResponse('rob', 'success') ||
-        `🦹 *Rob Successful!*\n\nYou stole *£{stolen}* from @{target}!\n_({pct}% of their wallet)_`
+        `🦹 You robbed @{target} off {stolen} Apples!\n_({pct}% of their wallet)_`
       await sock.sendMessage(jid, {
         text: fillTemplate(robWin, { stolen: stolen.toLocaleString(), target: tp, pct: (pct*100).toFixed(1) }),
         mentions: [mentionJid],
@@ -442,7 +391,7 @@ module.exports = {
       await db.updateUser(sender, { wallet: Math.max(0, (u.wallet || 0) - fine) })
       await db.trackCurrencyRemoved(fine)
       const robFail = getResponse('rob', 'fail') ||
-        `👮 *Your robbery attempt failed.*\n\nYou failed to rob @{target} and paid a *£{fine}* fine.`
+        `👮 *Your robbery attempt failed.*\n\nYou failed to rob @{target} and paid a *{fine} 🍎* fine.`
       await sock.sendMessage(jid, {
         text: fillTemplate(robFail, { target: tp, fine }),
         mentions: [mentionJid],
@@ -787,7 +736,7 @@ module.exports = {
 
   // ── .cds ─────────────────────────────────────────────────────────────────
   async cds({ reply, sender }) {
-    const commands = ['daily', 'work', 'fish', 'dig', 'beg', 'weekly', 'monthly', 'crime', 'rob', 'heist', 'bonus', 'raid', 'dungeon', 'quest']
+    const commands = ['daily', 'work', 'fish', 'dig', 'beg', 'crime', 'rob', 'heist', 'bonus', 'raid', 'dungeon', 'quest']
     const lines    = []
     for (const cmd of commands) {
       const remaining = await db.getCooldown(sender, cmd)
