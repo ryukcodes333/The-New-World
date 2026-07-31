@@ -146,9 +146,9 @@ module.exports = {
   //   .edit "command" outcome | "response text"
   //
   // Examples:
-  //   .edit "daily" success | "🌟 Daily done! +£{coins} — streak {streak}"
-  //   .edit "bet" win | "🎲 You won £{payout}!"
-  //   .edit "rob" fail | "👮 Got caught! Fined £{fine}."
+  //   .edit "daily" success | "🌟 Daily done! +🍎{coins} — streak {streak}"
+  //   .edit "bet" win | "🎲 You won 🍎{payout}!"
+  //   .edit "rob" fail | "👮 Got caught! Fined 🍎{fine}."
   //
   // Placeholders:  use {name} tokens — they are filled at runtime.
   async edit({ reply, isOwner, args, textRaw }) {

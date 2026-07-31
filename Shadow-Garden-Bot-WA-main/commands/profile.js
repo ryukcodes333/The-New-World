@@ -280,7 +280,7 @@ module.exports = {
 
     const caption =
       `${viewingLabel}🌟 𝗨𝗦𝗘𝗥 𝗖𝗔𝗥𝗗 🌟\n` +
-      `\n`
+      `\n` +
       `ꕤ 𝗡𝗮𝗺𝗲: ${u.name || targetPhone}\n` +
       `ꕤ 𝗛𝗮𝗻𝗱𝗹𝗲: @${targetPhone}\n` +
       `ꕤ 𝗜𝗗: ${targetPhone}\n` +

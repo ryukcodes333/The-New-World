@@ -511,7 +511,7 @@ async function handleMessage(sock, msg, botIdentity) {
   const cmd   = args.shift().toLowerCase()
 
   // ── Look up user ─────────────────────────────────────────────────────────
-  const user = await db.getOrCreateUser(sender, msg.pushName || sender, senderJid).catch(() => null)
+  const user = await db.getUser(sender).catch(() => null)
   const canonicalSender = user?.phone || sender
 
   if (user?.banned && !isOwner) {
@@ -616,7 +616,7 @@ async function handleMessage(sock, msg, botIdentity) {
   }
 
   if (isDbReady && !user) {
-    try { user = await db.getOrCreateUser(sender, msg.pushName || sender, senderJid) } catch {}
+    try { user = await db.getUser(sender) } catch {}
   }
 
   // ── Registration gate — all commands require a linked account (jid) ──────

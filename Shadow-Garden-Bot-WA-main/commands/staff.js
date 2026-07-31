@@ -160,7 +160,7 @@ module.exports = {
     const tu     = await db.getOrCreateUser(phone)
     const newBal = (tu.wallet || 0) + amount
     await db.updateUser(phone, { wallet: newBal })
-    await sock.sendMessage(jid, { text: `💰 *CASH ADDED*\n\n✅ +£${amount.toLocaleString()} → @${phone}\n💵 Balance: £${newBal.toLocaleString()}`, mentions: [mentioned[0]] }, { quoted: msg })
+    await sock.sendMessage(jid, { text: `💰 *CASH ADDED*\n\n✅ +🍎${amount.toLocaleString()} → @${phone}\n💵 Balance: 🍎${newBal.toLocaleString()}`, mentions: [mentioned[0]] }, { quoted: msg })
   },
 
   async rc({ reply, sock, jid, msg, args, isOwner, isMod, isGuardian }) {
@@ -184,7 +184,7 @@ module.exports = {
     const newWallet = (tu.wallet || 0) - fromWallet
     const newBank   = (tu.bank   || 0) - fromBank
     await sock.sendMessage(jid, {
-      text: `🚫 *CASH REMOVED*\n\n-£${totalRemoved.toLocaleString()} from @${phone}\n💵 Wallet: £${newWallet.toLocaleString()}\n🏦 Bank: £${newBank.toLocaleString()}`,
+      text: `🚫 *CASH REMOVED*\n\n-🍎${totalRemoved.toLocaleString()} from @${phone}\n💵 Wallet: 🍎${newWallet.toLocaleString()}\n🏦 Bank: 🍎${newBank.toLocaleString()}`,
       mentions: [mentioned[0]],
     }, { quoted: msg })
   },
@@ -222,7 +222,7 @@ module.exports = {
     const cards = await db.getCards()
     if (!cards || !cards.length) return reply('❌ No cards in database.')
     const card = cards[Math.floor(Math.random() * cards.length)]
-    const text = `🎴 *CARD SPAWNED!*\n\n📛 *Name:* ${card.name}\n⭐ *Tier:* ${card.tier}\n💰 *Price:* £${(card.price || 0).toLocaleString()}\n\n_First to claim wins it!_ 🖤`
+    const text = `🎴 *CARD SPAWNED!*\n\n📛 *Name:* ${card.name}\n⭐ *Tier:* ${card.tier}\n💰 *Price:* 🍎${(card.price || 0).toLocaleString()}\n\n_First to claim wins it!_ 🖤`
     if (card.image_url) {
       const { sendWithImage } = require('../imageHelper')
       await sendWithImage(sock, jid, msg, card.image_url, text, reply)
@@ -386,7 +386,7 @@ module.exports = {
     const phone = mentioned[0].split('@')[0]
     const tu    = await db.getOrCreateUser(phone)
     await db.updateUser(phone, { wallet: (tu.wallet || 0) + amount })
-    await sock.sendMessage(jid, { text: `💸 *STAFF GRANT*\n\n+£${amount.toLocaleString()} → @${phone}`, mentions: [mentioned[0]] })
+    await sock.sendMessage(jid, { text: `💸 *STAFF GRANT*\n\n+🍎${amount.toLocaleString()} → @${phone}`, mentions: [mentioned[0]] })
   },
   async givecoins(ctx) { return module.exports.give(ctx) },
 
@@ -400,7 +400,7 @@ module.exports = {
     const tu     = await db.getOrCreateUser(phone)
     const deduct = Math.min(amount, tu.wallet || 0)
     await db.updateUser(phone, { wallet: (tu.wallet || 0) - deduct })
-    await sock.sendMessage(jid, { text: `🚫 *STAFF DEDUCT*\n\n-£${deduct.toLocaleString()} from @${phone}`, mentions: [mentioned[0]] })
+    await sock.sendMessage(jid, { text: `🚫 *STAFF DEDUCT*\n\n-🍎${deduct.toLocaleString()} from @${phone}`, mentions: [mentioned[0]] })
   },
 
   async resetuser({ reply, msg, isOwner }) {
