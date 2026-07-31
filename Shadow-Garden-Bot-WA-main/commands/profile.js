@@ -183,7 +183,7 @@ module.exports = {
       return reply(
         isViewingOther
           ? '❌ That user does not have a profile yet.'
-          : '❌ Could not load your profile. Make sure the database is set up.'
+          : '⚠️ Could not load your profile. Please try again later.'
       )
     }
 
@@ -280,6 +280,7 @@ module.exports = {
 
     const caption =
       `${viewingLabel}🌟 𝗨𝗦𝗘𝗥 𝗖𝗔𝗥𝗗 🌟\n` +
+      `\n`
       `ꕤ 𝗡𝗮𝗺𝗲: ${u.name || targetPhone}\n` +
       `ꕤ 𝗛𝗮𝗻𝗱𝗹𝗲: @${targetPhone}\n` +
       `ꕤ 𝗜𝗗: ${targetPhone}\n` +
