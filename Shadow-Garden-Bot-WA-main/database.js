@@ -142,7 +142,14 @@ const userPokemonSchema = new mongoose.Schema({
   level:      { type: Number, default: 1 },
   xp:         { type: Number, default: 0 },
   hp:         Number,
+  current_hp: Number,
   max_hp:     Number,
+  attack:     Number,
+  defense:    Number,
+  sp_atk:     Number,
+  sp_def:     Number,
+  speed:      Number,
+  nature:     String,
   base_xp:    Number,
   in_party:   { type: Boolean, default: true },
   is_shiny:   { type: Boolean, default: false },
@@ -977,6 +984,55 @@ async function deleteAllUsers() {
   return result.deletedCount
 }
 
+// ── .resetallusers CONFIRM — full clean slate ───────────────────────────────
+// Wipes every collection that holds per-user data: profiles, Pokémon, card
+// ownership (not the card catalog itself), warnings, cooldowns, inventory,
+// AFK status, suspensions, guilds/guild membership, loans, message logs,
+// summer tokens, pending WA-link OTPs, and resets aggregate economy stats.
+// Does NOT touch: Group settings, the Card catalog, Frames, DisabledCommand
+// config, PairedBot infra, AiBotPersona, or active Game sessions — these are
+// bot/group configuration and shared assets, not user data.
+async function deleteAllUserData() {
+  const [
+    users, pokemon, cards, warnings, afk, cooldowns, inventory,
+    tokens, guildMembers, guilds, loans, suspensions, messages, otps, econ,
+  ] = await Promise.all([
+    User.deleteMany({}),
+    UserPokemon.deleteMany({}),
+    UserCard.deleteMany({}),
+    Warning.deleteMany({}),
+    AFK.deleteMany({}),
+    Cooldown.deleteMany({}),
+    Inventory.deleteMany({}),
+    SummerToken.deleteMany({}),
+    GuildMember.deleteMany({}),
+    Guild.deleteMany({}),
+    Loan.deleteMany({}),
+    Suspension.deleteMany({}),
+    Message.deleteMany({}),
+    WaLinkOtp.deleteMany({}),
+    EconStats.deleteMany({}),
+  ])
+
+  return {
+    users:        users.deletedCount,
+    pokemon:      pokemon.deletedCount,
+    cards:        cards.deletedCount,
+    warnings:     warnings.deletedCount,
+    afk:          afk.deletedCount,
+    cooldowns:    cooldowns.deletedCount,
+    inventory:    inventory.deletedCount,
+    tokens:       tokens.deletedCount,
+    guildMembers: guildMembers.deletedCount,
+    guilds:       guilds.deletedCount,
+    loans:        loans.deletedCount,
+    suspensions:  suspensions.deletedCount,
+    messages:     messages.deletedCount,
+    otps:         otps.deletedCount,
+    econStats:    econ.deletedCount,
+  }
+}
+
 // ── Per-group disabled commands ────────────────────────────────────────────
 async function getGroupDisabledCmds(groupJid) {
   const g = await Group.findOne({ group_id: groupJid }).lean()
@@ -1312,7 +1368,7 @@ module.exports = {
   addCard, getCards, getCard, getUserCards, getUserCardCount,
   assignCard, addUserCard, deleteUserCardById, updateUserCardById, getCardOwners, getOrCreateShoobCard,
   getCardByExternalId, getOwnerCountsBatch,
-  addMutedUser, removeMutedUser, deleteAllUsers,
+  addMutedUser, removeMutedUser, deleteAllUsers, deleteAllUserData,
   // Card-spawn
   setGroupCardSpawn, tickCardSpawn,
   // AI persona
