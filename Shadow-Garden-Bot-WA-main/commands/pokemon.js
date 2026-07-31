@@ -8,6 +8,24 @@ const { buildBattleImage, buildBattleChallenge } = require('../battleHelper')
 const PHELP_IMAGE = path.join(__dirname, '../assets/phelp.jpg')
 const PMENU_IMAGE = path.join(__dirname, '../assets/pmenu.jpg')
 
+// ── Stat calculation (consistent everywhere: party, wild, gym, PvP) ────────
+// Mirrors the real games' formulas (minus IV/EV, which this bot doesn't track):
+//   HP         = floor(2 × Base × Level / 100) + Level + 10
+//   Other stat = floor(floor(2 × Base × Level / 100) + 5)
+// This ensures a Pokémon's HP/ATK/DEF/SPD always scale with its own stored
+// base stat AND its level, so the same Pokémon shows the same numbers
+// everywhere (party list, profile, wild battle, gym, PvP).
+function calcMaxHp(p) {
+  const base  = p?.hp || 45
+  const level = p?.level || 1
+  return Math.floor((2 * base * level) / 100) + level + 10
+}
+function calcStat(base, level) {
+  base  = base  || 45
+  level = level || 1
+  return Math.floor((2 * base * level) / 100) + 5
+}
+
 // ── Pending wild pokemon & battles ───────────────────────────────
 const pendingPokemon    = {}
 const activeBattles     = {}
@@ -254,11 +272,11 @@ const MOODS = ['curious', 'aggressive', 'playful', 'timid', 'confused', 'hungry'
 const STATUSES = ['Wild 🟢', 'Weakened 🔴', 'Energized ⚡', 'Cautious 👀', 'Raging 🔥']
 
 function buildSpawnCaption(data, extras = {}) {
-  const level   = extras.level   || randInt(2, 50)
+  const level   = extras.level   || 20
   const weather = extras.weather || WEATHER_BOOSTS[Math.floor(Math.random() * WEATHER_BOOSTS.length)]
   const mood    = extras.mood    || MOODS[Math.floor(Math.random() * MOODS.length)]
   const status  = extras.status  || STATUSES[Math.floor(Math.random() * STATUSES.length)]
-  const maxHp   = data.hp || 45
+  const maxHp   = calcMaxHp({ hp: data.hp, level })
   const curHp   = Math.floor(maxHp * (0.5 + Math.random() * 0.5))
   const pokeball  = extras.pokeball  ?? randInt(1, 8)
   const greatball = extras.greatball ?? randInt(0, 4)
@@ -273,9 +291,9 @@ function buildSpawnCaption(data, extras = {}) {
     `*⚡ Type:* ${data.types.join(' / ')}\n` +
     `*🔥 Ability:* ${ability}\n` +
     `*❤️ HP:* ${curHp}/${maxHp}\n` +
-    `*⚔️ Attack:* ${data.attack || 50}\n` +
-    `*🛡️ Defense:* ${data.defense || 45}\n` +
-    `*💨 Speed:* ${data.speed || 45}\n\n` +
+    `*⚔️ Attack:* ${calcStat(data.attack, level)}\n` +
+    `*🛡️ Defense:* ${calcStat(data.defense, level)}\n` +
+    `*💨 Speed:* ${calcStat(data.speed, level)}\n\n` +
     `*📍 Location:* ${data.location}\n` +
     `*🌦️ Weather Boost:* ${weather}\n` +
     `*✨ Status:* ${status}\n\n` +
@@ -939,7 +957,7 @@ module.exports = {
       const types   = Array.isArray(p.types) ? p.types.join(' / ') : (p.types || '?')
       const ability = Array.isArray(p.abilities) ? (p.abilities[0] || 'Unknown') : (p.abilities || 'Unknown')
       const nature  = p.nature || 'Unknown'
-      const maxHp   = p.hp || 45
+      const maxHp   = calcMaxHp(p)
       const curHp   = p.current_hp ?? maxHp
       const xpReq   = (p.level || 1) * 100
 
@@ -974,11 +992,11 @@ module.exports = {
         `*🎒 Item:* None\n` +
         `*🌟 Shiny:* No\n\n` +
         `*📊 Stats*\n` +
-        `* ATK ${p.attack || 0}\n` +
-        `* DEF ${p.defense || 0}\n` +
-        `* SPA ${p.sp_atk || 0}\n` +
-        `* SPD ${p.sp_def || 0}\n` +
-        `* SPE ${p.speed || 0}\n\n` +
+        `* ATK ${p.attack || 45}\n` +
+        `* DEF ${p.defense || 45}\n` +
+        `* SPA ${p.sp_atk || 45}\n` +
+        `* SPD ${p.sp_def || 45}\n` +
+        `* SPE ${p.speed || 45}\n\n` +
         `*🎮 Moves*\n` +
         `* ${move1}\n` +
         `* ${move2}\n` +

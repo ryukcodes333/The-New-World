@@ -480,31 +480,53 @@ module.exports = {
     await reply(`🎭 *Your Role*\n\n${role}`)
   },
 
-  // ── .resetallusers — owner only, deletes every user document ────────────
+  // ── .resetallusers — owner only, wipes ALL user data completely ─────────
   async resetallusers({ reply, isOwner, args }) {
     if (!isOwner) return reply('*🚫 Access Denied* — Owner only command.')
 
     const confirm = (args[0] || '').toUpperCase()
     if (confirm !== 'CONFIRM') {
       return reply(
-        `⚠️ *RESET ALL USERS*\n\n` +
-        `This will *permanently delete ALL user profiles* from the database.\n` +
-        `Cards, warnings, Pokémon, and other data are NOT affected — only user accounts.\n\n` +
-        `Everyone will need to re-register using *.reg <name> | <password>*\n\n` +
+        `⚠️ *FULL DATABASE RESET*\n\n` +
+        `This will *permanently delete EVERYTHING tied to users*:\n` +
+        `┃ User profiles & stats\n` +
+        `┃ Pokémon (all caught)\n` +
+        `┃ Card ownership (collections/decks)\n` +
+        `┃ Warnings, suspensions, AFK status\n` +
+        `┃ Cooldowns, inventory, loans\n` +
+        `┃ Guilds & guild membership\n` +
+        `┃ Message logs, summer tokens\n` +
+        `┃ Aggregate economy stats\n\n` +
+        `_The card catalog itself, group settings, and bot config are kept._\n\n` +
+        `This *cannot be undone*.\n\n` +
         `*To confirm, type:*\n` +
         `_.resetallusers CONFIRM_`
       )
     }
 
     const db = require('../database')
-    const count = await db.deleteAllUsers()
+    const r = await db.deleteAllUserData()
 
     await reply(
-      `🗑️ *ALL USERS DELETED*\n\n` +
-      `*${count}* user profiles have been removed from the database.\n\n` +
-      `Users must now re-register using:\n` +
+      `🗑️ *FULL DATABASE RESET COMPLETE*\n\n` +
+      `👤 Users:          ${r.users}\n` +
+      `🐾 Pokémon:        ${r.pokemon}\n` +
+      `🎴 Card ownership: ${r.cards}\n` +
+      `⚠️ Warnings:       ${r.warnings}\n` +
+      `😴 AFK:            ${r.afk}\n` +
+      `⏳ Cooldowns:      ${r.cooldowns}\n` +
+      `🎒 Inventory:      ${r.inventory}\n` +
+      `☀️ Tokens:         ${r.tokens}\n` +
+      `🏰 Guild members:  ${r.guildMembers}\n` +
+      `🏰 Guilds:         ${r.guilds}\n` +
+      `🏦 Loans:          ${r.loans}\n` +
+      `🔇 Suspensions:    ${r.suspensions}\n` +
+      `💬 Message logs:   ${r.messages}\n` +
+      `🔗 Link OTPs:      ${r.otps}\n` +
+      `📊 Econ stats:     ${r.econStats}\n\n` +
+      `Everyone must now re-register using:\n` +
       `*.reg <name> | <password>*\n\n` +
-      `_The slate is clean._ 🌑`
+      `_The slate is completely clean._ 🌑`
     )
   },
 
@@ -613,6 +635,7 @@ module.exports = {
       `┃ .ecostats .econreset .moneywipe\n` +
       `┃ .lotterystart .lotteryend .lotterydraw\n` +
       `┃ .lockall .unlockall .shutdown .restart\n` +
+      `┃ .maintenance on/off .dashboard .botlogs\n` +
       `╰━━━━━━━━━━━━━━━━\n`
     ) : ''
 
@@ -697,6 +720,76 @@ module.exports = {
     await reply(header + ownerBlock + modBlock + guardianBlock + allStaffBlock +
       `\n_Use *.help <cmd>* for details on any command._`)
   },
+
+  // ── .maintenance on/off — owner + mod only ───────────────────────────────
+  // When ON: only staff (owner/mod/guardian) can run any bot command.
+  // When OFF: everyone can use the bot normally again.
+  async maintenance({ reply, isOwner, isMod, args }) {
+    if (!isOwner && !isMod) return reply('*🚫 Access Denied* — Owner/Mod only.')
+    const sub = (args[0] || '').toLowerCase()
+    if (sub !== 'on' && sub !== 'off') {
+      return reply(
+        `🛠️ *Maintenance Mode*\n\n` +
+        `Currently: *${global.maintenanceMode ? 'ON 🔴' : 'OFF 🟢'}*\n\n` +
+        `Usage: *.maintenance on* or *.maintenance off*`
+      )
+    }
+    global.maintenanceMode = sub === 'on'
+    return reply(
+      global.maintenanceMode
+        ? `🛠️ *Maintenance mode is now ON.*\n\nOnly staff can use bot commands until it's turned off.`
+        : `✅ *Maintenance mode is now OFF.*\n\nEveryone can use the bot again.`
+    )
+  },
+
+  // ── .dashboard — owner + mod only ────────────────────────────────────────
+  // Recent command activity, message volume, and a rough ban-risk estimate
+  // based on how fast the bot has been sending messages lately.
+  async dashboard({ reply, isOwner, isMod }) {
+    if (!isOwner && !isMod) return reply('*🚫 Access Denied* — Owner/Mod only.')
+
+    const stats = global.botStats || { startTime: Date.now(), messagesSent: 0, recentActivity: [], errors: [] }
+    const uptimeMs  = Date.now() - stats.startTime
+    const hrs       = Math.floor(uptimeMs / 3600000)
+    const mins      = Math.floor((uptimeMs % 3600000) / 60000)
+
+    const risk = typeof global.getBanRiskLevel === 'function'
+      ? global.getBanRiskLevel()
+      : { level: 'UNKNOWN', emoji: '⚪', last60s: 0, perMin5m: 0 }
+
+    const recent = (stats.recentActivity || []).slice(-10).reverse()
+    const recentLines = recent.length
+      ? recent.map(a => {
+          const secsAgo = Math.floor((Date.now() - a.ts) / 1000)
+          const ago = secsAgo < 60 ? `${secsAgo}s ago` : `${Math.floor(secsAgo / 60)}m ago`
+          return `┃ .${a.cmd} — @${a.sender} (${ago})`
+        }).join('\n')
+      : '┃ (no activity yet)'
+
+    const recentErrors = (stats.errors || []).slice(-5).reverse()
+    const errorLines = recentErrors.length
+      ? recentErrors.map(e => {
+          const secsAgo = Math.floor((Date.now() - e.ts) / 1000)
+          const ago = secsAgo < 60 ? `${secsAgo}s ago` : `${Math.floor(secsAgo / 60)}m ago`
+          return `┃ .${e.cmd} — ${e.message} (${ago})`
+        }).join('\n')
+      : '┃ (no recent errors)'
+
+    await reply(
+      `📊 *BOT DASHBOARD*\n` +
+      `━━━━━━━━━━━━━━━━━━\n\n` +
+      `🛠️ Maintenance: *${global.maintenanceMode ? 'ON 🔴' : 'OFF 🟢'}*\n` +
+      `⏱️ Uptime: *${hrs}h ${mins}m*\n` +
+      `💬 Messages sent (session): *${stats.messagesSent.toLocaleString()}*\n\n` +
+      `${risk.emoji} *Ban Risk: ${risk.level}*\n` +
+      `┃ ${risk.last60s} sent in the last 60s\n` +
+      `┃ ~${risk.perMin5m}/min average (last 5 min)\n` +
+      `_Unofficial estimate — WhatsApp doesn't publish real thresholds. Sustained high-volume sending to many chats is the main risk factor._\n\n` +
+      `📋 *Recent Activity*\n${recentLines}\n\n` +
+      `⚠️ *Recent Errors*\n${errorLines}`
+    )
+  },
+  async botlogs(ctx) { return module.exports.dashboard(ctx) },
 
   // ── .seedcards — bulk import all 85k cards from JSON into MongoDB ─────────
   async seedcards({ reply, isOwner }) {

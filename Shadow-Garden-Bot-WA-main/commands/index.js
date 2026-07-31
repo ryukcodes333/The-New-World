@@ -40,6 +40,70 @@ const OWNER_LID   = '6125344813179@lid'
 
 const spamTracker = {}
 
+// ── Bot-wide stats tracking (for .maintenance + .dashboard) ────────────────
+// In-memory only — resets on restart. Good enough for "how are things right
+// now" visibility; not meant as permanent analytics storage.
+global.maintenanceMode = global.maintenanceMode || false
+global.botStats = global.botStats || {
+  startTime:      Date.now(),
+  messagesSent:   0,
+  sendTimestamps: [],   // rolling window of send times, trimmed to last 10 min
+  recentActivity: [],   // last 50 commands run: { ts, cmd, sender, jid }
+  errors:         [],   // last 20 command errors: { ts, cmd, message }
+}
+
+function trackSend() {
+  const now = Date.now()
+  global.botStats.messagesSent++
+  global.botStats.sendTimestamps.push(now)
+  const cutoff = now - 10 * 60 * 1000
+  while (global.botStats.sendTimestamps.length && global.botStats.sendTimestamps[0] < cutoff) {
+    global.botStats.sendTimestamps.shift()
+  }
+}
+
+// Wrap sock.sendMessage exactly once per socket instance so every outgoing
+// message bot-wide gets counted, no matter which command file sends it.
+function wrapSockForStats(sock) {
+  if (sock.__statsWrapped) return
+  sock.__statsWrapped = true
+  const origSend = sock.sendMessage.bind(sock)
+  sock.sendMessage = async (...sendArgs) => {
+    trackSend()
+    return origSend(...sendArgs)
+  }
+}
+
+function logActivity(entry) {
+  global.botStats.recentActivity.push({ ts: Date.now(), ...entry })
+  if (global.botStats.recentActivity.length > 50) global.botStats.recentActivity.shift()
+}
+
+function logCommandError(cmd, message) {
+  global.botStats.errors.push({ ts: Date.now(), cmd, message })
+  if (global.botStats.errors.length > 20) global.botStats.errors.shift()
+}
+
+// Rough, unofficial heuristic — WhatsApp doesn't publish exact ban thresholds.
+// Based on sustained send RATE, since mass-spam bans are almost always a
+// volume/rate problem, not a one-off message.
+function getBanRiskLevel() {
+  const now = Date.now()
+  const last60s = global.botStats.sendTimestamps.filter(t => now - t < 60 * 1000).length
+  const last5m  = global.botStats.sendTimestamps.filter(t => now - t < 5 * 60 * 1000).length
+  const perMin5m = last5m / 5
+
+  let level, emoji
+  if (last60s >= 40 || perMin5m >= 40) { level = 'HIGH';     emoji = '🔴' }
+  else if (last60s >= 20 || perMin5m >= 20) { level = 'ELEVATED'; emoji = '🟡' }
+  else { level = 'LOW'; emoji = '🟢' }
+
+  return { level, emoji, last60s, perMin5m: Math.round(perMin5m) }
+}
+
+global.getBanRiskLevel  = getBanRiskLevel
+global.logCommandError  = logCommandError
+
 // ── Button / List response router ────────────────────────────────────────────
 // Handles interactiveResponseMessage (quick_reply buttons from @dark-yasiya/baileys),
 // buttonsResponseMessage (classic buttons), and listResponseMessage.
@@ -158,6 +222,9 @@ async function handleMessage(sock, msg, botIdentity) {
     }
     sock.__lpWrapped = true
   }
+
+  // ── Message-volume tracking (for .maintenance / .dashboard) ─────────────
+  wrapSockForStats(sock)
 
   const jid       = msg.key.remoteJid
   const isGroup   = jid?.endsWith('@g.us')
@@ -504,6 +571,18 @@ async function handleMessage(sock, msg, botIdentity) {
     return
   }
 
+  // ── Maintenance mode — blocks everyone except staff while active ────────
+  // Staff can always still toggle it off or check the dashboard.
+  const MAINTENANCE_ALWAYS_ALLOWED = new Set(['maintenance', 'dashboard', 'botlogs'])
+  if (global.maintenanceMode && !isOwner && !isMod && !isGuardian && !MAINTENANCE_ALWAYS_ALLOWED.has(cmd)) {
+    await sock.sendMessage(jid, {
+      text:
+        `🛠️ *Bot is under maintenance.*\n\n` +
+        `Only staff can use commands right now. Please check back shortly.`,
+    }, { quoted: msg })
+    return
+  }
+
   const NO_DB_CMDS = new Set([
     'menu','help','ping','uptime','botstatus','info','status','website',
     'community','support','addbot','memory','alive','version','speed','runtime','repo','script',
@@ -569,6 +648,8 @@ async function handleMessage(sock, msg, botIdentity) {
   }
 
   try {
+    logActivity({ cmd, sender: canonicalSender, jid })
+
     // ── Custom frames (disambiguated from the built-in numeric frame catalog
     //    and the existing .upload <card>. <series> <tier> command) ─────────
     if (cmd === 'upload' && (args[0] || '').toLowerCase() === 'frame') {
@@ -789,6 +870,7 @@ async function handleMessage(sock, msg, botIdentity) {
 
   } catch (err) {
     console.error(`Command error [${usedPrefix}${cmd}]:`, err.message)
+    logCommandError(cmd, err.message)
     await ctx.reply(`⚠️ Error running *.${cmd}*\n\n_${err.message}_`)
   }
 }
