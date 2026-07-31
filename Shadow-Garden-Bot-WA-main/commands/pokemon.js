@@ -497,7 +497,7 @@ module.exports = {
       weight:     data?.weight || '?',
     }
     try {
-      await db.createPokemon(sender, pokeData)
+      await db.addPokemon(sender, pokeData)
     } catch (e) {
       return reply(`⚠️ Failed to save your starter: ${e.message}`)
     }
