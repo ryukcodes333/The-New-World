@@ -892,7 +892,7 @@ module.exports = {
     const coins = Math.floor(adv.coins * clsBonus)
     const xp = Math.floor(adv.xp * clsBonus)
     await db.updateUser(sender, { wallet: (u.wallet || 0) + coins, xp: (u.xp || 0) + xp })
-    await reply(`⚔️ *ADVENTURE COMPLETE*\n\n👤 ${u.name || sender}\n${cls ? `${cls.emoji} Class: ${cls.name}\n` : ''}\n🗺️ You ${adv.text}!\n\n💰 +$${coins}\n⭐ +${xp} XP\n\n_Every adventure forges the shadow warrior._ 🖤`)
+    await reply(`⚔️ *ADVENTURE COMPLETE*\n\n👤 ${u.name || sender}\n${cls ? `${cls.emoji} Class: ${cls.name}\n` : ''}\n🗺️ You ${adv.text}!\n\n💰 +🍎${coins}\n⭐ +${xp} XP\n\n_Every adventure forges the shadow warrior._ 🖤`)
   },
 
   async rpg({ sock, jid, msg, reply, sender, user }) {
@@ -926,7 +926,7 @@ module.exports = {
     const quest = quests[Math.floor(Math.random() * quests.length)]
     await db.updateUser(sender, { wallet: (u.wallet || 0) + quest.reward })
     await db.setCooldown(sender, 'quest', 10 * 60)
-    await reply(`📜 *QUEST COMPLETE*\n\n👤 ${u.name || sender}\n\n✅ Quest: *${quest.name}*\n💰 Reward: +$${quest.reward}\n\n⏳ Next quest in 10 minutes.\n\n_The shadows reward the diligent._ 🖤`)
+    await reply(`📜 *QUEST COMPLETE*\n\n👤 ${u.name || sender}\n\n✅ Quest: *${quest.name}*\n💰 Reward: +🍎${quest.reward}\n\n⏳ Next quest in 10 minutes.\n\n_The shadows reward the diligent._ 🖤`)
   },
 
   async raid({ sock, jid, reply, sender, isGroup, user }) {
@@ -942,7 +942,7 @@ module.exports = {
     const reward = 8 + Math.floor(Math.random() * 8)
     await db.updateUser(sender, { wallet: (u.wallet || 0) + reward })
     await db.setCooldown(sender, 'raid', 10 * 60)
-    await reply(`⚔️ *RAID COMPLETE*\n\n👥 Your group defeated *${boss.name}*!\n\n💰 Raid Reward: +$${reward}\n\n⏳ Next raid in 10 minutes.\n\n_The raid boss falls before the Konosuba warriors._ 🖤`)
+    await reply(`⚔️ *RAID COMPLETE*\n\n👥 Your group defeated *${boss.name}*!\n\n💰 Raid Reward: +🍎${reward}\n\n⏳ Next raid in 10 minutes.\n\n_The raid boss falls before the Konosuba warriors._ 🖤`)
   },
 
   async class({ reply, sender, user }) {
@@ -1040,7 +1040,7 @@ module.exports = {
       `💔 Damage taken: ${damageTaken}\n` +
       `━━━━━━━━━━━━━━━━━━━\n\n` +
       `🎁 *LOOT COLLECTED*\n` +
-      `   💰  +$${reward.coins.toLocaleString()}\n` +
+      `   💰  +🍎${reward.coins.toLocaleString()}\n` +
       `   💎  +${reward.gems} gems\n` +
       `   ⭐  +${reward.xp} XP\n` +
       (milestone ? `   👑  *MILESTONE BONUS — double loot!*\n` : '') +

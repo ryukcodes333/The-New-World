@@ -292,7 +292,7 @@ module.exports = {
   async gtastart({ sock, jid, msg, reply, sender, user, pushName }) {
     const u = user || await db.getOrCreateUser(sender)
     const gta = await getGtaData(sender)
-    if (gta.created) return reply(`🎮 You already have a GTA character!\n\n👤 *${gta.name || pushName}*\n📊 RP: ${gta.rp || 0}\n💰 Cash: $${(gta.cash || 0).toLocaleString()}\n\nUse *.gtaprofile* to view your character.`)
+    if (gta.created) return reply(`🎮 You already have a GTA character!\n\n👤 *${gta.name || pushName}*\n📊 RP: ${gta.rp || 0}\n💰 Cash: 🍎${(gta.cash || 0).toLocaleString()}\n\nUse *.gtaprofile* to view your character.`)
     gta.created = true
     gta.name = gta.name || pushName || sender
     gta.cash = 50000
@@ -317,12 +317,12 @@ module.exports = {
       `━━━━━━━━━━━━━━━━━━━━━\n` +
       `👤 *Name:* ${gta.name}\n` +
       `📊 *Rank:* ${rankInfo.rank} — ${rankInfo.name}\n` +
-      `💰 *Starting Cash:* $50,000\n` +
+      `💰 *Starting Cash:* 🍎50,000\n` +
       `📍 *Location:* ${gta.location}\n` +
       `━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🎯 *Starter Kit:*\n` +
       `• 🔫 Pistol\n` +
-      `• 💵 $50,000 cash\n` +
+      `• 💵 🍎50,000 cash\n` +
       `• 🗺️ Access to all of Los Santos\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━\n` +
       `📖 *Get Started:*\n` +
@@ -354,7 +354,7 @@ module.exports = {
       `${gta.isCop ? '👮 *Role:* LSPD Officer\n' : ''}` +
       `📊 *Rank:* ${rankInfo.rank} — *${rankInfo.name}*\n` +
       `⭐ *RP:* ${(gta.rp || 0).toLocaleString()}\n` +
-      `💰 *Cash:* $${(gta.cash || 0).toLocaleString()}\n` +
+      `💰 *Cash:* 🍎${(gta.cash || 0).toLocaleString()}\n` +
       `📍 *Location:* ${gta.location || 'Los Santos'}\n` +
       `${outfit ? `${outfit.emoji} *Outfit:* ${outfit.name}\n` : ''}` +
       `${vehicle ? `${vehicle.emoji} *Vehicle:* ${vehicle.name}\n` : '🚶 *Vehicle:* On foot\n'}` +
@@ -364,7 +364,7 @@ module.exports = {
       `🎯 *Missions:* ${gta.totalMissions || 0}\n` +
       `💎 *Heists:* ${gta.totalHeists || 0}\n` +
       `${gta.wanted > 0 ? `⭐ *Wanted:* ${wantedStars(gta.wanted)}\n` : ''}` +
-      `${gta.bounty > 0 ? `💀 *Bounty:* $${gta.bounty.toLocaleString()}\n` : ''}` +
+      `${gta.bounty > 0 ? `💀 *Bounty:* 🍎${gta.bounty.toLocaleString()}\n` : ''}` +
       `━━━━━━━━━━━━━━━━━━━━━\n` +
       `📈 *Skills:*\n` +
       Object.entries(gta.skills || {}).map(([k, v]) => `  • ${k}: ${'█'.repeat(Math.floor((v / 500) * 10))}${'░'.repeat(10 - Math.floor((v / 500) * 10))} ${v}`).join('\n') + '\n' +
@@ -496,15 +496,15 @@ module.exports = {
     const loc = LOCATIONS.find(l => l.name === gta.location) || LOCATIONS[0]
     const events = [
       `🚗 You spotted a rare vehicle. Move quick!`,
-      `💼 A stranger offers a shady job. +$5,000`,
+      `💼 A stranger offers a shady job. +🍎5,000`,
       `🔫 Ballas territory. Stay low.`,
       `💊 Drug runners passing through.`,
       `🚔 Cops are patrolling heavy. Be careful.`,
-      `💰 Found a cash stash hidden in an alley! +$2,000`,
+      `💰 Found a cash stash hidden in an alley! +🍎2,000`,
       `🎯 Rival crew spotted. Fight or flee?`,
     ]
     const event = events[Math.floor(Math.random() * events.length)]
-    const cashFound = event.includes('+$5,000') ? 5000 : event.includes('+$2,000') ? 2000 : 0
+    const cashFound = event.includes('+🍎5,000') ? 5000 : event.includes('+🍎2,000') ? 2000 : 0
     if (cashFound) {
       gta.cash = (gta.cash || 0) + cashFound
       await saveGtaData(sender, gta)
@@ -528,7 +528,7 @@ module.exports = {
       `📖 ${mission.desc}\n\n` +
       `⚡ *Difficulty:* ${mission.difficulty}\n` +
       `⏱️ *Est. Time:* ${mission.time}\n` +
-      `💰 *Reward:* $${mission.reward.cash.toLocaleString()}\n` +
+      `💰 *Reward:* 🍎${mission.reward.cash.toLocaleString()}\n` +
       `⭐ *RP:* +${mission.reward.rp}\n` +
       `━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `_Use *.gtacomplete* when done._ 🏙️`
@@ -541,7 +541,7 @@ module.exports = {
     const rank = gtaRank(gta.rp || 0)
     const avail = []
     for (let i = 0; i < 5; i++) avail.push(getMission(rank.rank))
-    const list = avail.map((m, i) => `${i + 1}. *${m.name}* — $${m.reward.cash.toLocaleString()} | ${m.difficulty}`).join('\n')
+    const list = avail.map((m, i) => `${i + 1}. *${m.name}* — 🍎${m.reward.cash.toLocaleString()} | ${m.difficulty}`).join('\n')
     const text = `🎯 *AVAILABLE MISSIONS*\n\n${list}\n\n_Use *.gtamission* to get one assigned._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.mission, text, reply)
   },
@@ -568,7 +568,7 @@ module.exports = {
     await saveGtaData(sender, gta)
     const text =
       `✅ *MISSION COMPLETE — ${active.mission.name}*\n\n` +
-      `💰 Cash: +$${totalCash.toLocaleString()}${bonus ? ` (🎉 +$${bonus} bonus!)` : ''}\n` +
+      `💰 Cash: +🍎${totalCash.toLocaleString()}${bonus ? ` (🎉 +🍎${bonus} bonus!)` : ''}\n` +
       `⭐ RP: +${active.mission.reward.rp}\n` +
       `🎯 Total Missions: ${gta.totalMissions}\n\n` +
       `_Smooth operator._ 🏙️`
@@ -602,7 +602,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + pick.rp
     await saveGtaData(sender, gta)
     await db.setCooldown(sender, 'gtawork', 20 * 60)
-    const text = `💼 *WORK DONE*\n\nYou ${pick.job}.\n\n💰 +$${pick.cash.toLocaleString()}\n⭐ +${pick.rp} RP\n\n_Honest hustle. Mostly._ 🏙️`
+    const text = `💼 *WORK DONE*\n\nYou ${pick.job}.\n\n💰 +🍎${pick.cash.toLocaleString()}\n⭐ +${pick.rp} RP\n\n_Honest hustle. Mostly._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.work, text, reply)
   },
 
@@ -635,7 +635,7 @@ module.exports = {
     const text =
       `💰 *ROBBERY SUCCESS — ${target.place}*\n\n` +
       `🏦 Target: *${target.place}*\n` +
-      `💵 Stolen: $${loot.toLocaleString()}\n` +
+      `💵 Stolen: 🍎${loot.toLocaleString()}\n` +
       `⭐ +500 RP\n` +
       `🚨 Wanted: ${wantedStars(gta.wanted)}\n\n` +
       `_You're a professional. Mostly._ 🏙️`
@@ -667,7 +667,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + 300
     gta.wanted = Math.min(5, (gta.wanted || 0) + 1)
     await saveGtaData(sender, gta)
-    const text = `💊 *DRUG DEAL — ${drug.type}*\n\n💰 Profit: $${profit.toLocaleString()}\n⭐ +300 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_In and out. Clean exit._ 🏙️`
+    const text = `💊 *DRUG DEAL — ${drug.type}*\n\n💰 Profit: 🍎${profit.toLocaleString()}\n⭐ +300 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_In and out. Clean exit._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.drug, text, reply)
   },
 
@@ -697,7 +697,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + 200
     gta.wanted = Math.min(5, (gta.wanted || 0) + 1)
     await saveGtaData(sender, gta)
-    const text = `🚗 *VEHICLE STOLEN — ${steal.car}*\n\n💰 Sold to Simeon: $${val.toLocaleString()}\n⭐ +200 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Gone in 60 seconds._ 🏙️`
+    const text = `🚗 *VEHICLE STOLEN — ${steal.car}*\n\n💰 Sold to Simeon: 🍎${val.toLocaleString()}\n⭐ +200 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Gone in 60 seconds._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.steal, text, reply)
   },
 
@@ -724,7 +724,7 @@ module.exports = {
     gta.skills.hacking = Math.min(500, (gta.skills.hacking || 0) + 20)
     gta.wanted = Math.min(5, (gta.wanted || 0) + 2)
     await saveGtaData(sender, gta)
-    const text = `💻 *BANK HACKED*\n\n🏦 Offshore account drained!\n💰 +$${hacked.toLocaleString()}\n⭐ +1,000 RP\n💻 Hacking skill: ${gta.skills.hacking}/500\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Ghost protocol. They'll never trace it._ 🏙️`
+    const text = `💻 *BANK HACKED*\n\n🏦 Offshore account drained!\n💰 +🍎${hacked.toLocaleString()}\n⭐ +1,000 RP\n💻 Hacking skill: ${gta.skills.hacking}/500\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Ghost protocol. They'll never trace it._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.hackBank, text, reply)
   },
 
@@ -735,8 +735,8 @@ module.exports = {
     const amtArg = args.find(a => /^\$?\d+$/.test(a))
     if (!mentionedJid || !amtArg) return reply(`❌ Usage: *.gtabounty @player $amount*`)
     const amount = parseInt(amtArg.replace('$', ''))
-    if (amount < 1000) return reply(`❌ Minimum bounty is $1,000.`)
-    if ((gta.cash || 0) < amount) return reply(`❌ Not enough cash. You have $${(gta.cash || 0).toLocaleString()}`)
+    if (amount < 1000) return reply(`❌ Minimum bounty is 🍎1,000.`)
+    if ((gta.cash || 0) < amount) return reply(`❌ Not enough cash. You have 🍎${(gta.cash || 0).toLocaleString()}`)
     const targetPhone = mentionedJid.split('@')[0].split(':')[0]
     const targetGta = await getGtaData(targetPhone)
     if (!targetGta.created) return reply(`❌ That player has no GTA character.`)
@@ -744,7 +744,7 @@ module.exports = {
     targetGta.bounty = (targetGta.bounty || 0) + amount
     await saveGtaData(sender, gta)
     await saveGtaData(targetPhone, targetGta)
-    return reply(`💀 *BOUNTY PLACED*\n\n🎯 Target: @${targetPhone}\n💰 Bounty: $${amount.toLocaleString()}\n\n_Someone's getting paid to hunt them down._ 🏙️`)
+    return reply(`💀 *BOUNTY PLACED*\n\n🎯 Target: @${targetPhone}\n💰 Bounty: 🍎${amount.toLocaleString()}\n\n_Someone's getting paid to hunt them down._ 🏙️`)
   },
 
   async gtacollect({ reply, sender, args, msg }) {
@@ -764,7 +764,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + 500
     await saveGtaData(sender, gta)
     await saveGtaData(targetPhone, targetGta)
-    return reply(`💀 *BOUNTY COLLECTED*\n\n🎯 Eliminated: @${targetPhone}\n💰 Payout: $${bounty.toLocaleString()}\n⭐ +500 RP\n\n_Money well earned._ 🏙️`)
+    return reply(`💀 *BOUNTY COLLECTED*\n\n🎯 Eliminated: @${targetPhone}\n💰 Payout: 🍎${bounty.toLocaleString()}\n⭐ +500 RP\n\n_Money well earned._ 🏙️`)
   },
 
   // ──────────────────── HEISTS ──────────────────────────────────
@@ -773,7 +773,7 @@ module.exports = {
     if (!gta.created) return reply(`❌ Create a character first with *.gtastart*`)
     const rank = gtaRank(gta.rp || 0)
     const avail = Object.entries(HEISTS).filter(([, h]) => rank.rank >= h.minLevel)
-    const list = avail.map(([id, h]) => `• *.gta${id}* — ${h.name}\n  💰 Up to $${Math.max(...Object.values(h.payout)).toLocaleString()}`).join('\n')
+    const list = avail.map(([id, h]) => `• *.gta${id}* — ${h.name}\n  💰 Up to 🍎${Math.max(...Object.values(h.payout)).toLocaleString()}`).join('\n')
     const text =
       `💎 *HEIST BOARD — LOS SANTOS*\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━\n` +
@@ -797,7 +797,7 @@ module.exports = {
       `💎 *HEIST PLANNED — ${heist.name}*\n\n` +
       `${heist.desc}\n\n` +
       `👥 Max: ${heist.maxPlayers} players\n` +
-      `💰 Payout: Up to $${Math.max(...Object.values(heist.payout)).toLocaleString()}\n\n` +
+      `💰 Payout: Up to 🍎${Math.max(...Object.values(heist.payout)).toLocaleString()}\n\n` +
       `📋 *Prep Steps:*\n${heist.prep.map(p => `• ${p}`).join('\n')}\n\n` +
       `_Use *.gtajoinheist ${id}* for others to join, then *.gtaexecuteheist*_ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE[id] || GTA_SCENE.heist, text, reply)
@@ -841,9 +841,9 @@ module.exports = {
     }
     const text =
       `💎 *HEIST SUCCESS — ${heist.name}*\n\n` +
-      `💰 Total Payout: $${totalPayout.toLocaleString()}\n` +
+      `💰 Total Payout: 🍎${totalPayout.toLocaleString()}\n` +
       `👥 Crew: ${active.members.length}\n` +
-      `💵 Each Cut: $${split.toLocaleString()}\n` +
+      `💵 Each Cut: 🍎${split.toLocaleString()}\n` +
       `⭐ +2,000 RP each\n\n` +
       `_The score of a lifetime._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE[active.heistId] || GTA_SCENE.heist, text, reply)
@@ -862,7 +862,7 @@ module.exports = {
     const gta = await getGtaData(sender)
     if (!gta.created) return reply(`❌ Create a character first with *.gtastart*`)
     const list = Object.entries(VEHICLES)
-      .map(([id, v]) => `${v.emoji} *${v.name}* (${v.type})\n  💰 $${v.price > 0 ? v.price.toLocaleString() : 'FREE'} | Speed: ${'⚡'.repeat(v.speed)}`)
+      .map(([id, v]) => `${v.emoji} *${v.name}* (${v.type})\n  💰 🍎${v.price > 0 ? v.price.toLocaleString() : 'FREE'} | Speed: ${'⚡'.repeat(v.speed)}`)
       .join('\n\n')
     const text = `🚗 *PREMIUM DELUXE MOTORSPORT*\n\n${list}\n\n_Use *.gtabuyvehicle <id>* to purchase._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.cars, text, reply)
@@ -875,12 +875,12 @@ module.exports = {
     const vehicle = VEHICLES[id]
     if (!vehicle) return reply(`❌ Unknown vehicle. Use *.gtacars* to browse.\n\nOptions: ${Object.keys(VEHICLES).join(', ')}`)
     if (vehicle.price > 0 && (gta.cash || 0) < vehicle.price) {
-      return reply(`❌ Not enough cash!\n\n💰 You have: $${(gta.cash || 0).toLocaleString()}\n💵 Need: $${vehicle.price.toLocaleString()}`)
+      return reply(`❌ Not enough cash!\n\n💰 You have: 🍎${(gta.cash || 0).toLocaleString()}\n💵 Need: 🍎${vehicle.price.toLocaleString()}`)
     }
     if (vehicle.price > 0) gta.cash = (gta.cash || 0) - vehicle.price
     gta.vehicle = id
     await saveGtaData(sender, gta)
-    const text = `${vehicle.emoji} *VEHICLE PURCHASED — ${vehicle.name}*\n\n${vehicle.type} class\n💰 Paid: $${vehicle.price > 0 ? vehicle.price.toLocaleString() : '0 (stolen!)'}\n⚡ Speed: ${'⚡'.repeat(vehicle.speed)}\n\n_She's a beauty._ 🏙️`
+    const text = `${vehicle.emoji} *VEHICLE PURCHASED — ${vehicle.name}*\n\n${vehicle.type} class\n💰 Paid: 🍎${vehicle.price > 0 ? vehicle.price.toLocaleString() : '0 (stolen!)'}\n⚡ Speed: ${'⚡'.repeat(vehicle.speed)}\n\n_She's a beauty._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.cars, text, reply)
   },
 
@@ -914,7 +914,7 @@ module.exports = {
       `🏁 *STREET RACE*\n\n` +
       `🚗 Your ride: ${myV?.emoji} ${myV?.name} (Speed ${mySpeed})\n` +
       `🏎️ Opponent: ${target} (Speed ${oppSpeed})\n\n` +
-      `${win ? `✅ *YOU WIN!*\n💰 +$${prize.toLocaleString()}\n⭐ +300 RP` : `❌ *LOST!*\n⭐ +50 RP\n_Better luck next time._`}\n\n` +
+      `${win ? `✅ *YOU WIN!*\n💰 +🍎${prize.toLocaleString()}\n⭐ +300 RP` : `❌ *LOST!*\n⭐ +50 RP\n_Better luck next time._`}\n\n` +
       `_Fastest in Los Santos._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.race, text, reply)
   },
@@ -933,7 +933,7 @@ module.exports = {
       gta.cash = (gta.cash || 0) + loot
       gta.rp = (gta.rp || 0) + 150
       await saveGtaData(sender, gta)
-      const text = `🔫 *DRIVE-BY*\n\n✅ Clean hit. Rival crew shook.\n💰 +$${loot.toLocaleString()}\n⭐ +150 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Gone before they saw the plates._ 🏙️`
+      const text = `🔫 *DRIVE-BY*\n\n✅ Clean hit. Rival crew shook.\n💰 +🍎${loot.toLocaleString()}\n⭐ +150 RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Gone before they saw the plates._ 🏙️`
       return sendImgOrText(sock, jid, msg, GTA_SCENE.driveby, text, reply)
     }
     await saveGtaData(sender, gta)
@@ -947,9 +947,9 @@ module.exports = {
     if (!gta.created) return reply(`❌ Create a character first with *.gtastart*`)
     const rank = gtaRank(gta.rp || 0)
     const list = Object.entries(WEAPONS)
-      .map(([id, w]) => `${w.emoji} *${w.name}* — $${w.price.toLocaleString()} | DMG: ${w.damage} | Req: Rank ${w.level}${rank.rank < w.level ? ' ❌' : ' ✅'}`)
+      .map(([id, w]) => `${w.emoji} *${w.name}* — 🍎${w.price.toLocaleString()} | DMG: ${w.damage} | Req: Rank ${w.level}${rank.rank < w.level ? ' ❌' : ' ✅'}`)
       .join('\n')
-    const text = `🔫 *AMMU-NATION — WEAPONS SHOP*\n\n${list}\n\n_Use *.gtabuygun <id>* to purchase._\n\nYour cash: $${(gta.cash || 0).toLocaleString()} 🏙️`
+    const text = `🔫 *AMMU-NATION — WEAPONS SHOP*\n\n${list}\n\n_Use *.gtabuygun <id>* to purchase._\n\nYour cash: 🍎${(gta.cash || 0).toLocaleString()} 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.weapons, text, reply)
   },
 
@@ -961,12 +961,12 @@ module.exports = {
     if (!weapon) return reply(`❌ Unknown weapon.\n\nOptions: ${Object.keys(WEAPONS).join(', ')}`)
     const rank = gtaRank(gta.rp || 0)
     if (rank.rank < weapon.level) return reply(`❌ Need Rank ${weapon.level} for ${weapon.name}. Your rank: ${rank.rank}`)
-    if ((gta.cash || 0) < weapon.price) return reply(`❌ Not enough cash. Need $${weapon.price.toLocaleString()}, have $${(gta.cash || 0).toLocaleString()}`)
+    if ((gta.cash || 0) < weapon.price) return reply(`❌ Not enough cash. Need 🍎${weapon.price.toLocaleString()}, have 🍎${(gta.cash || 0).toLocaleString()}`)
     if ((gta.weapons || []).includes(id)) return reply(`⚠️ You already own a *${weapon.name}*.`)
     gta.cash = (gta.cash || 0) - weapon.price
     gta.weapons = [...(gta.weapons || []), id]
     await saveGtaData(sender, gta)
-    const text = `${weapon.emoji} *WEAPON PURCHASED — ${weapon.name}*\n\n💰 Cost: $${weapon.price.toLocaleString()}\n💥 Damage: ${weapon.damage}\n\n_Locked and loaded._ 🏙️`
+    const text = `${weapon.emoji} *WEAPON PURCHASED — ${weapon.name}*\n\n💰 Cost: 🍎${weapon.price.toLocaleString()}\n💥 Damage: ${weapon.damage}\n\n_Locked and loaded._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.weapons, text, reply)
   },
 
@@ -1041,7 +1041,7 @@ module.exports = {
       `🔫 *GANG WAR*\n\n` +
       `${gang.color} *${gang.name}* vs ${enemy.color} *${enemy.name}*\n\n` +
       `${win
-        ? `✅ *Your crew WON!*\n💰 +$${cash.toLocaleString()}\n⭐ +${rp} RP\n📍 Turf secured!`
+        ? `✅ *Your crew WON!*\n💰 +🍎${cash.toLocaleString()}\n⭐ +${rp} RP\n📍 Turf secured!`
         : `❌ *Your crew was pushed back.*\n⭐ +${rp} RP`
       }\n` +
       `⭐ Wanted: ${wantedStars(gta.wanted)}\n\n` +
@@ -1120,7 +1120,7 @@ module.exports = {
     await saveGtaData(targetPhone, targetGta)
     gta.rp = (gta.rp || 0) + 500
     await saveGtaData(sender, gta)
-    const text = `👮 *ARREST MADE*\n\n🎯 Arrested @${targetPhone}\n💰 Bail deducted: $${bail.toLocaleString()}\n⭐ Officer earned: +500 RP\n\n_Law and order, Los Santos style._ 🏙️`
+    const text = `👮 *ARREST MADE*\n\n🎯 Arrested @${targetPhone}\n💰 Bail deducted: 🍎${bail.toLocaleString()}\n⭐ Officer earned: +500 RP\n\n_Law and order, Los Santos style._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.arrest, text, reply)
   },
 
@@ -1220,7 +1220,7 @@ module.exports = {
       `👨‍🏫 Teacher: @${sender}\n` +
       `📚 Subject: ${subject.name}\n` +
       `📖 ${subject.desc}\n\n` +
-      `💰 Teacher Pay: +$5,000\n` +
+      `💰 Teacher Pay: +🍎5,000\n` +
       `⭐ +500 RP\n\n` +
       `_All students use *.gtalearn ${num + 1}* to earn skill XP from this class!_\n\n` +
       `_A good teacher changes lives. A great one changes the game._ 🎓`
@@ -1260,7 +1260,7 @@ module.exports = {
       `🎓 *GRADUATION DAY*\n\n` +
       `🏆 Congratulations @${sender}!\n\n` +
       `👨‍🏫 You are now a *Teacher* at Los Santos Academy!\n` +
-      `💰 Graduation bonus: +$25,000\n` +
+      `💰 Graduation bonus: +🍎25,000\n` +
       `⭐ +3,000 RP\n\n` +
       `📌 You can now:\n` +
       `• *.gtateach* — Run classes\n` +
@@ -1284,7 +1284,7 @@ module.exports = {
     const rank = gtaRank(gta.rp || 0)
     if (rank.rank < 20) return reply(`❌ Need *Rank 20* to create a school.\n\nYour rank: ${rank.rank}`)
     const CREATE_COST = 50000
-    if ((gta.cash || 0) < CREATE_COST) return reply(`❌ Need $${CREATE_COST.toLocaleString()} to open a school.\n\nYou have: $${(gta.cash || 0).toLocaleString()}`)
+    if ((gta.cash || 0) < CREATE_COST) return reply(`❌ Need 🍎${CREATE_COST.toLocaleString()} to open a school.\n\nYou have: 🍎${(gta.cash || 0).toLocaleString()}`)
     const schoolName = args.join(' ').trim()
     if (!schoolName || schoolName.length < 3) return reply(`❌ Provide a school name (min 3 chars).\n\nUsage: *.gtacreateschool <name>*`)
     if (schoolName.length > 40) return reply(`❌ School name too long (max 40 chars).`)
@@ -1318,7 +1318,7 @@ module.exports = {
       `🏫 *${schoolName}*\n` +
       `🆔 School ID: \`${id}\`\n` +
       `👤 Dean: ${gta.name || sender}\n` +
-      `💰 Cost: -$${CREATE_COST.toLocaleString()}\n\n` +
+      `💰 Cost: -🍎${CREATE_COST.toLocaleString()}\n\n` +
       `📋 Commands:\n` +
       `• *.gtamyschool* — Manage your school\n` +
       `• *.gtaschoolinvite @player* — Invite students\n` +
@@ -1334,7 +1334,7 @@ module.exports = {
       return reply(`🎓 *CUSTOM SCHOOLS*\n\nNo custom schools yet.\n\nCreate one with *.gtacreateschool <name>* 🏙️`)
     }
     const list = schools.slice(0, 10).map((s, i) =>
-      `${i + 1}. *${s.name}* [ID: \`${s.id}\`]\n   👥 ${Object.keys(s.members).length} member(s) | 💰 Fee: $${(s.fee || 0).toLocaleString()}\n   📖 ${s.description || 'No description'}`
+      `${i + 1}. *${s.name}* [ID: \`${s.id}\`]\n   👥 ${Object.keys(s.members).length} member(s) | 💰 Fee: 🍎${(s.fee || 0).toLocaleString()}\n   📖 ${s.description || 'No description'}`
     ).join('\n\n')
     const text = `🎓 *CUSTOM SCHOOLS OF LOS SANTOS*\n\n${list}\n\n_Join with *.gtajoinschool <id>*_ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.school, text, reply)
@@ -1349,14 +1349,14 @@ module.exports = {
     if (!school) return reply(`❌ School not found. Use *.gtaschools* to browse.`)
     if (school.members[sender]) return reply(`⚠️ You're already in *${school.name}*.`)
     if (school.fee > 0 && (gta.cash || 0) < school.fee) {
-      return reply(`❌ Enrollment fee: $${school.fee.toLocaleString()}. You have $${(gta.cash || 0).toLocaleString()}`)
+      return reply(`❌ Enrollment fee: 🍎${school.fee.toLocaleString()}. You have 🍎${(gta.cash || 0).toLocaleString()}`)
     }
     if (school.fee > 0) gta.cash = (gta.cash || 0) - school.fee
     school.members[sender] = 'student'
     gta.customSchool = { schoolId: id, schoolName: school.name, role: 'student' }
     if (!gta.schoolRole) gta.schoolRole = 'student'
     await saveGtaData(sender, gta)
-    const text = `🎓 *ENROLLED — ${school.name}*\n\n👤 Role: *Student*\n${school.fee > 0 ? `💰 Paid: $${school.fee.toLocaleString()}\n` : ''}🆔 School ID: \`${id}\`\n\n_Welcome to ${school.name}. Learn well._ 🎓`
+    const text = `🎓 *ENROLLED — ${school.name}*\n\n👤 Role: *Student*\n${school.fee > 0 ? `💰 Paid: 🍎${school.fee.toLocaleString()}\n` : ''}🆔 School ID: \`${id}\`\n\n_Welcome to ${school.name}. Learn well._ 🎓`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.school, text, reply)
   },
 
@@ -1371,7 +1371,7 @@ module.exports = {
       `🎓 *MY SCHOOL — ${school.name}*\n\n` +
       `🆔 ID: \`${school.id}\`\n` +
       `👥 Members: ${memberCount}\n` +
-      `💰 Enrollment Fee: $${(school.fee || 0).toLocaleString()}\n` +
+      `💰 Enrollment Fee: 🍎${(school.fee || 0).toLocaleString()}\n` +
       `📖 ${school.description}\n\n` +
       `📋 Management:\n` +
       `• *.gtaschoolset fee <amount>* — Set enrollment fee\n` +
@@ -1392,7 +1392,7 @@ module.exports = {
       const fee = parseInt(args[1]) || 0
       if (fee < 0) return reply(`❌ Fee can't be negative.`)
       school.fee = fee
-      return reply(`✅ Enrollment fee set to $${fee.toLocaleString()}`)
+      return reply(`✅ Enrollment fee set to 🍎${fee.toLocaleString()}`)
     }
     if (sub === 'desc') {
       const desc = args.slice(1).join(' ')
@@ -1436,7 +1436,7 @@ module.exports = {
     const gta = await getGtaData(sender)
     if (!gta.created) return reply(`❌ Create a character first with *.gtastart*`)
     const bet = parseInt(args[0]) || 1000
-    if ((gta.cash || 0) < bet) return reply(`❌ Not enough cash. You have $${(gta.cash || 0).toLocaleString()}`)
+    if ((gta.cash || 0) < bet) return reply(`❌ Not enough cash. You have 🍎${(gta.cash || 0).toLocaleString()}`)
     const outcomes = [
       { name: '🎰 Jackpot!', mult: 10, chance: 0.02 },
       { name: '💎 Big Win',  mult: 3,  chance: 0.10 },
@@ -1453,7 +1453,7 @@ module.exports = {
     gta.cash = Math.max(0, (gta.cash || 0) + winnings)
     gta.rp = (gta.rp || 0) + (winnings > 0 ? 100 : 10)
     await saveGtaData(sender, gta)
-    const text = `🎰 *DIAMOND CASINO*\n\nBet: $${bet.toLocaleString()}\n${outcome.name}${winnings > 0 ? `\n💰 +$${winnings.toLocaleString()}` : winnings < 0 ? `\n💸 -$${bet.toLocaleString()}` : '\n↔️ Push'}\n\n💵 Balance: $${(gta.cash || 0).toLocaleString()}\n\n_The house always wins. Except when it doesn't._ 🎰`
+    const text = `🎰 *DIAMOND CASINO*\n\nBet: 🍎${bet.toLocaleString()}\n${outcome.name}${winnings > 0 ? `\n💰 +🍎${winnings.toLocaleString()}` : winnings < 0 ? `\n💸 -🍎${bet.toLocaleString()}` : '\n↔️ Push'}\n\n💵 Balance: 🍎${(gta.cash || 0).toLocaleString()}\n\n_The house always wins. Except when it doesn't._ 🎰`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.casino, text, reply)
   },
 
@@ -1467,7 +1467,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + 50
     await saveGtaData(sender, gta)
     await db.setCooldown(sender, 'gtastrip', 20 * 60)
-    const text = `🍸 *VANILLA UNICORN*\n\nSpent $${spent.toLocaleString()} on drinks and entertainment.\n⭐ +50 RP (for the experience)\n\n_What happens in the Unicorn, stays in the Unicorn._ 🏙️`
+    const text = `🍸 *VANILLA UNICORN*\n\nSpent 🍎${spent.toLocaleString()} on drinks and entertainment.\n⭐ +50 RP (for the experience)\n\n_What happens in the Unicorn, stays in the Unicorn._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.strip, text, reply)
   },
 
@@ -1482,7 +1482,7 @@ module.exports = {
     gta.cash = Math.max(0, (gta.cash || 0) - cost)
     await saveGtaData(sender, gta)
     await db.setCooldown(sender, 'gtabar', 5 * 60)
-    const text = `🍺 *BAR TIME*\n\nOrdered: *${drink}*\nCost: $${cost}\n\n_Even criminals need to unwind._ 🏙️`
+    const text = `🍺 *BAR TIME*\n\nOrdered: *${drink}*\nCost: 🍎${cost}\n\n_Even criminals need to unwind._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.strip, text, reply)
   },
   async gtadrink(ctx) { return module.exports.gtabar(ctx) },
@@ -1498,7 +1498,7 @@ module.exports = {
     gta.rp = (gta.rp || 0) + (win ? 200 : 30)
     gta.wanted = Math.min(5, (gta.wanted || 0) + 1)
     await saveGtaData(sender, gta)
-    const text = `👊 *STREET FIGHT*\n\n${win ? `✅ You knocked out *${target}*!\n💰 +$${Math.abs(earnings).toLocaleString()}` : `❌ *${target}* got the better of you!\n💸 -$${Math.abs(earnings).toLocaleString()}`}\n⭐ ${win ? '+200' : '+30'} RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Fists and bullets — the language of LS._ 🏙️`
+    const text = `👊 *STREET FIGHT*\n\n${win ? `✅ You knocked out *${target}*!\n💰 +🍎${Math.abs(earnings).toLocaleString()}` : `❌ *${target}* got the better of you!\n💸 -🍎${Math.abs(earnings).toLocaleString()}`}\n⭐ ${win ? '+200' : '+30'} RP\n⭐ Wanted: ${wantedStars(gta.wanted)}\n\n_Fists and bullets — the language of LS._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.fight, text, reply)
   },
 
@@ -1512,7 +1512,7 @@ module.exports = {
       `👤 ${gta.name}\n` +
       `📊 Rank: ${rank.rank} — *${rank.name}*\n` +
       `⭐ RP: ${(gta.rp || 0).toLocaleString()}\n` +
-      `💰 Cash: $${(gta.cash || 0).toLocaleString()}\n` +
+      `💰 Cash: 🍎${(gta.cash || 0).toLocaleString()}\n` +
       `🎯 Missions: ${gta.totalMissions || 0}\n` +
       `💎 Heists: ${gta.totalHeists || 0}\n` +
       `🔫 Weapons: ${(gta.weapons || []).length}\n` +
@@ -1521,7 +1521,7 @@ module.exports = {
       `${gta.schoolRole ? `🎓 School: ${gta.schoolRole}\n` : ''}` +
       `${gta.isCop ? '👮 Badge: LSPD\n' : ''}` +
       `⭐ Wanted: ${wantedStars(gta.wanted || 0)}\n` +
-      `${gta.bounty ? `💀 Bounty: $${gta.bounty.toLocaleString()}\n` : ''}` +
+      `${gta.bounty ? `💀 Bounty: 🍎${gta.bounty.toLocaleString()}\n` : ''}` +
       `━━━━━━━━━━━━━━━━━━━━━\n` +
       `📈 *Skills:*\n` +
       Object.entries(gta.skills || {}).map(([k, v]) => `  ${k}: ${v}/500`).join('\n') +
@@ -1544,11 +1544,11 @@ module.exports = {
     if (!gta.created) return reply(`❌ Create a character first with *.gtastart*`)
     const rank = gtaRank(gta.rp || 0)
     if (rank.rank < 30) return reply(`❌ Need Rank 30 to become CEO/MC President.\n\nYour rank: ${rank.rank}`)
-    if ((gta.cash || 0) < 1000000) return reply(`❌ Need $1,000,000 to register an organization.\n\nYou have: $${(gta.cash || 0).toLocaleString()}`)
+    if ((gta.cash || 0) < 1000000) return reply(`❌ Need 🍎1,000,000 to register an organization.\n\nYou have: 🍎${(gta.cash || 0).toLocaleString()}`)
     gta.cash = (gta.cash || 0) - 1000000
     gta.isBoss = true
     await saveGtaData(sender, gta)
-    const text = `👑 *CEO REGISTERED*\n\n🏢 You are now a CEO / MC President!\n💰 Registration: -$1,000,000\n\n_Command your empire. Tax the streets._ 🏙️`
+    const text = `👑 *CEO REGISTERED*\n\n🏢 You are now a CEO / MC President!\n💰 Registration: -🍎1,000,000\n\n_Command your empire. Tax the streets._ 🏙️`
     await sendImgOrText(sock, jid, msg, GTA_SCENE.boss, text, reply)
   },
 

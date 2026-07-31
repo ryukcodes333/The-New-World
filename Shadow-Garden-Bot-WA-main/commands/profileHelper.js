@@ -808,9 +808,9 @@ function buildStatsSvg(user) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
   const fmtMoney = (n) => {
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-    if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`
-    return `$${Math.round(n)}`
+    if (n >= 1_000_000) return `🍎${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000)     return `🍎${(n / 1_000).toFixed(1)}K`
+    return `🍎${Math.round(n)}`
   }
 
   const name   = esc((user.name || user.phone || 'Unknown').substring(0, 18))

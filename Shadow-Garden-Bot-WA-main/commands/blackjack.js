@@ -68,7 +68,7 @@ async function sendGameButtons(sock, jid, game, text, quoted) {
     interactiveButtons.push({
       name: 'quick_reply',
       buttonParamsJson: JSON.stringify({
-        display_text: `💰 Double ($${(game.bet * 2).toLocaleString()})`,
+        display_text: `💰 Double (🍎${(game.bet * 2).toLocaleString()})`,
         id: `bj_double_${game.key}`
       })
     })
@@ -78,7 +78,7 @@ async function sendGameButtons(sock, jid, game, text, quoted) {
     await sock.sendMessage(jid, {
       text,
       title: '🃏 Blackjack',
-      footer: `Bet: $${game.bet.toLocaleString()}`,
+      footer: `Bet: 🍎${game.bet.toLocaleString()}`,
       interactiveButtons,
     }, quoted ? { quoted } : undefined)
   } catch {
@@ -98,7 +98,7 @@ async function sendEndButtons(sock, jid, text, key) {
       interactiveButtons: [
         {
           name: 'quick_reply',
-          buttonParamsJson: JSON.stringify({ display_text: '🔄 Play Again ($100)', id: `bj_again_${key}` })
+          buttonParamsJson: JSON.stringify({ display_text: '🔄 Play Again (🍎100)', id: `bj_again_${key}` })
         },
         {
           name: 'quick_reply',
@@ -123,13 +123,13 @@ async function resolveGame(sock, jid, game) {
   let result, delta
   if (dVal > 21 || pVal > dVal) {
     delta  = game.bet
-    result = `✅ *YOU WIN!* +$${game.bet.toLocaleString()}`
+    result = `✅ *YOU WIN!* +🍎${game.bet.toLocaleString()}`
   } else if (pVal === dVal) {
     delta  = 0
     result = `🤝 *PUSH!* Bet returned.`
   } else {
     delta  = -game.bet
-    result = `❌ *YOU LOSE!* -$${game.bet.toLocaleString()}`
+    result = `❌ *YOU LOSE!* -🍎${game.bet.toLocaleString()}`
   }
 
   const user      = await db.getOrCreateUser(game.phone)
@@ -137,7 +137,7 @@ async function resolveGame(sock, jid, game) {
   await db.updateUser(game.phone, { wallet: Math.max(0, newWallet) })
 
   bjGames.delete(game.key)
-  const text = `🃏 *BLACKJACK*\n\n${hands}\n\n━━━━━━━━━━━━\n${result}\n\n💰 New balance: $${Math.max(0, newWallet).toLocaleString()}`
+  const text = `🃏 *BLACKJACK*\n\n${hands}\n\n━━━━━━━━━━━━\n${result}\n\n💰 New balance: 🍎${Math.max(0, newWallet).toLocaleString()}`
   return sendEndButtons(sock, jid, text, game.key)
 }
 
@@ -164,8 +164,8 @@ module.exports = {
     }
 
     if (isNaN(bet) || bet <= 0) return reply('❌ Invalid bet amount.')
-    if (bet > wallet) return reply(`❌ Insufficient funds.\n💰 Your wallet: $${wallet.toLocaleString()}`)
-    if (bet < 10) return reply('❌ Minimum bet is $10.')
+    if (bet > wallet) return reply(`❌ Insufficient funds.\n💰 Your wallet: 🍎${wallet.toLocaleString()}`)
+    if (bet < 10) return reply('❌ Minimum bet is 🍎10.')
 
     await db.updateUser(phone, { wallet: wallet - bet })
 
@@ -184,11 +184,11 @@ module.exports = {
       const user2 = await db.getOrCreateUser(phone)
       await db.updateUser(phone, { wallet: (user2.wallet || 0) + bet + prize })
       bjGames.delete(key)
-      const text = `🃏 *BLACKJACK!*\n\n${renderHands(game, true)}\n\n━━━━━━━━━━━━\n🎉 *BLACKJACK! You win $${prize.toLocaleString()}!*\n💰 Payout: 1.5x`
+      const text = `🃏 *BLACKJACK!*\n\n${renderHands(game, true)}\n\n━━━━━━━━━━━━\n🎉 *BLACKJACK! You win 🍎${prize.toLocaleString()}!*\n💰 Payout: 1.5x`
       return sendEndButtons(sock, jid, text, key)
     }
 
-    const text = `🃏 *BLACKJACK* — Bet: $${bet.toLocaleString()}\n\n${hands}\n\n━━━━━━━━━━━━\nWhat will you do?`
+    const text = `🃏 *BLACKJACK* — Bet: 🍎${bet.toLocaleString()}\n\n${hands}\n\n━━━━━━━━━━━━\nWhat will you do?`
     return sendGameButtons(sock, jid, game, text, msg)
   },
 
@@ -233,23 +233,23 @@ module.exports = {
       const val = handValue(game.player)
       if (val > 21) {
         bjGames.delete(key)
-        const text = `🃏 *BUST!* 💥\n\n${renderHands(game)}\n\n━━━━━━━━━━━━\n❌ You busted! Lost $${game.bet.toLocaleString()}`
+        const text = `🃏 *BUST!* 💥\n\n${renderHands(game)}\n\n━━━━━━━━━━━━\n❌ You busted! Lost 🍎${game.bet.toLocaleString()}`
         return sendEndButtons(sock, jid, text, key)
       }
       if (val === 21) return resolveGame(sock, jid, game)
-      const text = `🃏 *BLACKJACK* — Bet: $${game.bet.toLocaleString()}\n\n${renderHands(game)}\n\n━━━━━━━━━━━━\nYou drew a card. What now?`
+      const text = `🃏 *BLACKJACK* — Bet: 🍎${game.bet.toLocaleString()}\n\n${renderHands(game)}\n\n━━━━━━━━━━━━\nYou drew a card. What now?`
       return sendGameButtons(sock, jid, game, text)
     }
 
     if (action === 'double') {
       const u = await db.getOrCreateUser(game.phone)
       if (u.wallet < game.bet) {
-        return sock.sendMessage(jid, { text: `❌ Not enough funds to double down! Wallet: $${u.wallet.toLocaleString()}` })
+        return sock.sendMessage(jid, { text: `❌ Not enough funds to double down! Wallet: 🍎${u.wallet.toLocaleString()}` })
       }
       await db.updateUser(game.phone, { wallet: u.wallet - game.bet })
       game.bet *= 2
       game.player.push(game.deck.pop())
-      await sock.sendMessage(jid, { text: `💰 *DOUBLE DOWN!*\n\n${renderHands(game)}\n\nNew bet: $${game.bet.toLocaleString()}` })
+      await sock.sendMessage(jid, { text: `💰 *DOUBLE DOWN!*\n\n${renderHands(game)}\n\nNew bet: 🍎${game.bet.toLocaleString()}` })
       return resolveGame(sock, jid, game)
     }
 

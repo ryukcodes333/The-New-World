@@ -503,8 +503,8 @@ module.exports = {
       if ((u.wallet || 0) < price) {
         return reply(
           `❌ *Not enough coins!*\n\n` +
-          `*${card.name}* [${card.tier}] costs *$${price.toLocaleString()}* to claim.\n` +
-          `Your wallet: *$${(u.wallet || 0).toLocaleString()}*`
+          `*${card.name}* [${card.tier}] costs *🍎${price.toLocaleString()}* to claim.\n` +
+          `Your wallet: *🍎${(u.wallet || 0).toLocaleString()}*`
         )
       }
       await db.updateUser(sender, { wallet: (u.wallet || 0) - price })
@@ -532,7 +532,7 @@ module.exports = {
       `🎊 *Card Claimed!*\n\n` +
       `*🎴 Name:* ${card.name}\n` +
       `*⭐ Tier:* ${card.tier}\n` +
-      (price > 0 ? `*💰 Paid:* $${price.toLocaleString()}` : '')
+      (price > 0 ? `*💰 Paid:* 🍎${price.toLocaleString()}` : '')
     )
   },
 
@@ -863,8 +863,8 @@ module.exports = {
     await reply(
       `💸 *CARD SOLD!*\n\n` +
       `${TIERS[tier] || '🎴'} *${c?.name || 'Unknown'}* (${tier})\n\n` +
-      `💰 *+$${price.toLocaleString()}* added to your wallet.\n` +
-      `_(Sold at 1.5× base price of $${base.toLocaleString()})_`
+      `💰 *+🍎${price.toLocaleString()}* added to your wallet.\n` +
+      `_(Sold at 1.5× base price of 🍎${base.toLocaleString()})_`
     )
   },
 
@@ -1085,7 +1085,7 @@ module.exports = {
         `*🎴 Name:* ${card.name}\n` +
         `*⭐ Tier:* ${card.tier}\n` +
         `*📚 Series:* ${card.series}\n` +
-        `*💰 Price:* $${price.toLocaleString()}\n` +
+        `*💰 Price:* 🍎${price.toLocaleString()}\n` +
         `*🆔 Card ID:* ${card.id}\n` +
         `*#️⃣ Issues:* #${owners.length}\n\n` +
         `> Use *.get \`${card.id}\`* to claim! (expires in 2 min)`

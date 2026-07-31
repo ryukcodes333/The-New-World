@@ -28,9 +28,9 @@ module.exports = {
       const sign = net >= 0 ? '+' : ''
       return (
         `*${r.date}*\n` +
-        `  ↑ Generated: $${r.generated.toLocaleString()}\n` +
-        `  ↓ Removed:   $${r.removed.toLocaleString()}\n` +
-        `  Net: ${sign}$${net.toLocaleString()}${net > 0 ? ' ⚠️' : ' ✅'}`
+        `  ↑ Generated: 🍎${r.generated.toLocaleString()}\n` +
+        `  ↓ Removed:   🍎${r.removed.toLocaleString()}\n` +
+        `  Net: ${sign}🍎${net.toLocaleString()}${net > 0 ? ' ⚠️' : ' ✅'}`
       )
     }).join('\n\n')
 
@@ -51,8 +51,8 @@ module.exports = {
       lines +
       `\n\n━━━━━━━━━━━━━━━━\n\n` +
       `📈 *All-Time Totals*\n` +
-      `  ↑ Total Generated: $${totals.totalGenerated.toLocaleString()}\n` +
-      `  ↓ Total Removed:   $${totals.totalRemoved.toLocaleString()}\n` +
+      `  ↑ Total Generated: 🍎${totals.totalGenerated.toLocaleString()}\n` +
+      `  ↓ Total Removed:   🍎${totals.totalRemoved.toLocaleString()}\n` +
       `  Net Inflation: ${inflation}%\n\n` +
       `🩺 *Economy Health:* ${health}\n\n` +
       `_Data updates in real-time as commands are used._`

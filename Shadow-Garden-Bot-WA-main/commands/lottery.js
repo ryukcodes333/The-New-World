@@ -28,7 +28,7 @@ async function sendPollResult(sock, jid, name, votes) {
 
 const db = require('../database')
 
-const LOTTERY_PRIZE_CASH = 100000  // $100,000 added to winner's wallet
+const LOTTERY_PRIZE_CASH = 100000  // 🍎100,000 added to winner's wallet
 
 async function autoDraw(sock, jid) {
   if (!globalLottery) return
@@ -40,7 +40,7 @@ async function autoDraw(sock, jid) {
   const sourceGroup = globalLottery.startedByGroup
   globalLottery = null
 
-  // Add $100,000 cash to winner's wallet
+  // Add 🍎100,000 cash to winner's wallet
   try {
     const u = await db.getOrCreateUser(winner.phone)
     await db.updateUser(winner.phone, { wallet: (u.wallet || 0) + LOTTERY_PRIZE_CASH })
@@ -50,12 +50,12 @@ async function autoDraw(sock, jid) {
     `🎰 *KONOSUBA LOTTERY — RESULTS*\n\n` +
     `━━━━━━━━━━━━━━━━━━━━━\n` +
     `🏆 *Prize:* ${title}\n` +
-    `💵 *Cash Prize:* $${LOTTERY_PRIZE_CASH.toLocaleString()} added to wallet!\n` +
+    `💵 *Cash Prize:* 🍎${LOTTERY_PRIZE_CASH.toLocaleString()} added to wallet!\n` +
     `👥 *Total Participants:* ${total}\n` +
     `━━━━━━━━━━━━━━━━━━━━━\n\n` +
     `🎉 *WINNER: @${winner.phone}*\n\n` +
     `🎊 Congratulations *${winner.name}*!\n` +
-    `You have won: *${title}* + *$${LOTTERY_PRIZE_CASH.toLocaleString()}* 💰\n\n` +
+    `You have won: *${title}* + *🍎${LOTTERY_PRIZE_CASH.toLocaleString()}* 💰\n\n` +
     `_The shadows have chosen… 🖤_`
 
   await sock.sendMessage(jid, { text: resultText, mentions: [winnerJid] })

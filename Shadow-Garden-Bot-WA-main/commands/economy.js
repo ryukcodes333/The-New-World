@@ -164,9 +164,9 @@ module.exports = {
     const levelUp = xpResult.leveledUp
       ? `\n🆙 *LEVEL UP!* ${xpResult.oldLevel} → ${xpResult.newLevel} 🎊`
       : ''
-    const xpPart = dailyXp > 0 ? ` And gained ${dailyXp} XP!` : ''
+    const xpPart = dailyXp > 0 ? ` And gained a total XP of ${dailyXp}!` : ''
     const dailyMsg = getResponse('daily', 'success') ||
-      `🎉 Congratulations! You've successfully claimed your daily reward of 🍎 ${coins}!${xpPart} ✨${levelUp}`
+      `🎉 Congratulations! You've successfully claimed your daily reward of 🍎 ${coins}!${xpPart}${levelUp}`
     await reply(fillTemplate(dailyMsg, { coins, gems, xp: dailyXp, streak: newStreak, levelUp, xpPart }))
   },
   async claim(ctx) { return module.exports.daily(ctx) },
@@ -364,7 +364,7 @@ module.exports = {
     const tu = await db.getOrCreateUser(tp)
     const targetWallet = tu.wallet || 0
 
-    // Minimum $200 to be robbed (protects early players)
+    // Minimum 🍎200 to be robbed (protects early players)
     if (targetWallet < 200) return reply(getResponse('rob', 'poorTarget') || `🪙 Target has nothing worth stealing. (Need 🍎 200+ in wallet)`)
 
     const success = Math.random() < 0.40  // 40% success
@@ -829,8 +829,8 @@ module.exports = {
   async achievements({ reply, sender, user }) {
     const u   = user || await db.getOrCreateUser(sender)
     const ach = []
-    if ((u.wallet || 0) + (u.bank || 0) >= 10000) ach.push('💰 *Coin Hoarder* — Net worth over $10,000')
-    if ((u.wallet || 0) + (u.bank || 0) >= 100000) ach.push('💎 *Shadow Millionaire* — Net worth over $100,000')
+    if ((u.wallet || 0) + (u.bank || 0) >= 10000) ach.push('💰 *Coin Hoarder* — Net worth over 🍎10,000')
+    if ((u.wallet || 0) + (u.bank || 0) >= 100000) ach.push('💎 *Shadow Millionaire* — Net worth over 🍎100,000')
     if ((u.streak || 0) >= 7)  ach.push('🔥 *Week Warrior* — 7-day daily streak')
     if ((u.streak || 0) >= 30) ach.push('🏆 *Monthly Master* — 30-day daily streak')
     if ((u.level  || 1) >= 10) ach.push('📈 *Veteran* — Reached level 10')
@@ -872,10 +872,10 @@ module.exports = {
         `*Max Loan:* 🍎 ${max.toLocaleString()}\n` +
         `*Interest Rate:* ${(interest * 100).toFixed(0)}%\n\n` +
         `━━━━━━━━━━━━━━━━\n\n` +
-        `🥉 *Bronze* (Lv 1–9) — Max $5,000 | 10%\n` +
-        `🔵 *Silver* (Lv 10–24) — Max $15,000 | 8%\n` +
-        `🟢 *Gold* (Lv 25–49) — Max $50,000 | 6%\n` +
-        `✨ *Shadow* (Lv 50+) — Max $150,000 | 4%\n\n` +
+        `🥉 *Bronze* (Lv 1–9) — Max 🍎5,000 | 10%\n` +
+        `🔵 *Silver* (Lv 10–24) — Max 🍎15,000 | 8%\n` +
+        `🟢 *Gold* (Lv 25–49) — Max 🍎50,000 | 6%\n` +
+        `✨ *Shadow* (Lv 50+) — Max 🍎150,000 | 4%\n\n` +
         `Usage: *.loan <amount>*`
       )
     }

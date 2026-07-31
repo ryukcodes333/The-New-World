@@ -2248,10 +2248,10 @@ module.exports = {
   // ── #mart ─────────────────────────────────────────────────────
   async mart({ reply, sender, user }) {
     const u = user || await db.getOrCreateUser(sender)
-    const coins    = Object.entries(SHOP_ITEMS).filter(([, v]) => !v.gem).map(([k, v]) => `${v.emoji} *${v.name}* - $${v.price}`).join('\n')
+    const coins    = Object.entries(SHOP_ITEMS).filter(([, v]) => !v.gem).map(([k, v]) => `${v.emoji} *${v.name}* - 🍎${v.price}`).join('\n')
     const gemItems = Object.entries(SHOP_ITEMS).filter(([, v]) => v.gem).map(([k, v]) => `${v.emoji} *${v.name}* - ${v.price} gems`).join('\n')
     await reply(
-      `🛒 *POKÉMART*\n\n💰 *Coins:* $${(u.wallet || 0).toLocaleString()}\n💎 *Gems:* ${u.gems || 0}\n\n━━━━━━━━━━━━━━━━━\n\n🏪 *ITEMS (Coins)*\n${coins}\n\n💜 *PREMIUM (Gems)*\n${gemItems}\n\n━━━━━━━━━━━━━━━━━\n\n💡 Use *#mbuy <item>* to purchase`
+      `🛒 *POKÉMART*\n\n💰 *Coins:* 🍎${(u.wallet || 0).toLocaleString()}\n💎 *Gems:* ${u.gems || 0}\n\n━━━━━━━━━━━━━━━━━\n\n🏪 *ITEMS (Coins)*\n${coins}\n\n💜 *PREMIUM (Gems)*\n${gemItems}\n\n━━━━━━━━━━━━━━━━━\n\n💡 Use *#mbuy <item>* to purchase`
     )
   },
 
@@ -2267,7 +2267,7 @@ module.exports = {
       if ((u.gems || 0) < item.price) return reply(`⚠️ Need *${item.price} gems*`)
       await db.updateUser(sender, { gems: (u.gems || 0) - item.price })
     } else {
-      if ((u.wallet || 0) < item.price) return reply(`⚠️ Need *$${item.price}*`)
+      if ((u.wallet || 0) < item.price) return reply(`⚠️ Need *🍎${item.price}*`)
       await db.updateUser(sender, { wallet: (u.wallet || 0) - item.price })
     }
     try { await db.addItem(sender, itemKey, 1) } catch {}
@@ -3108,7 +3108,7 @@ module.exports = {
     dex[String(entry.id)] = entry
     try { fs.writeFileSync(DEX_FILE, JSON.stringify(dex, null, 2)) } catch (e) { return reply(`❗ Failed to save: ${e.message}`) }
     const moveList = entry.moves.length
-      ? entry.moves.map((m, i) => `├ ${m}`).join('\n').replace(/├ ([^\n]*)$/, '└ $1')
+      ? entry.moves.map((m, i) => `├ ${m}`).join('\n').replace(/├ ([^\n]*)$/, '└ 🍎1')
       : '└ None'
     return reply(
       `✅ *${entry.name}* seeded to PokéDex!\n\n` +
