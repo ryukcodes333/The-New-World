@@ -4,6 +4,7 @@ const path = require('path')
 const https = require('https')
 const http = require('http')
 const { buildBattleImage, buildBattleChallenge } = require('../battleHelper')
+const { buildEvolveImage } = require('../evolveHelper')
 
 const PHELP_IMAGE = path.join(__dirname, '../assets/phelp.jpg')
 const PMENU_IMAGE = path.join(__dirname, '../assets/pmenu.jpg')
@@ -1862,16 +1863,23 @@ module.exports = {
       `💎 IV: ${ivPct}%\n\n` +
       `🎉 Congratulations! Your Pokémon has grown stronger.`
 
-    // ── Evolution scene image via Pollinations ──────────────────
-    const evoPrompt = encodeURIComponent(
-      `Create a dramatic Pokémon evolution scene in a vertical (9:16) game-art style. Show ${p.name} on the left transforming into ${newData.name} on the right. Bright white and blue evolution energy spirals around the Pokémon with glowing particles, lightning-like arcs, and a radiant aura. The background is a dark, mystical forest with soft bokeh lights and magical effects. The transition between the two Pokémon should be seamless, with energy obscuring the middle to emphasize transformation. Highly detailed, vibrant colors, cinematic lighting, dynamic composition, no text, no watermark, polished game artwork`
-    )
-    const evoImgUrl = `https://image.pollinations.ai/prompt/${evoPrompt}?width=576&height=1024&nologo=true&model=turbo&seed=${Date.now() % 9999}`
-    try {
-      await sock.sendMessage(jid, { image: { url: evoImgUrl }, caption }, { quoted: msg })
-      return
-    } catch {}
-    // Fallback to official artwork
+    // ── Evolution card image ────────────────────────────────────
+    const evoImgBuf = await buildEvolveImage({
+      preName:  p.name,
+      preId:    p.pokemon_id,
+      preTypes: p.types || [],
+      evoName:  newData.name,
+      evoId:    newData.id,
+      evoTypes: newData.types || [],
+    }).catch(() => null)
+
+    if (evoImgBuf) {
+      try {
+        await sock.sendMessage(jid, { image: evoImgBuf, caption }, { quoted: msg })
+        return
+      } catch {}
+    }
+    // Fallback to official artwork URL
     if (newData.imageUrl) {
       try { await sock.sendMessage(jid, { image: { url: newData.imageUrl }, caption }, { quoted: msg }); return } catch {}
     }
