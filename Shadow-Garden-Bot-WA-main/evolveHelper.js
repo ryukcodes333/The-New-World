@@ -101,6 +101,23 @@ function buildOverlaySvg(opts) {
   // Scale font size down for long names so they stay inside the name box
   const leftFontSize  = Math.min(38, Math.max(20, Math.floor(LEFT.nameBox.w  / Math.max(preNameUp.length, 1) * 1.7)))
   const rightFontSize = Math.min(38, Math.max(20, Math.floor(RIGHT.nameBox.w / Math.max(evoNameUp.length, 1) * 1.7)))
+  const typeFontSize  = 16
+
+  // NOTE on vertical centering: this renderer (resvg/librsvg via sharp) does
+  // NOT reliably honor dominant-baseline="central" — it was leaving every
+  // label sitting noticeably too high in its box/pill. Instead we use the
+  // default alphabetic baseline and manually push y down by fontSize*0.35,
+  // which measures out dead-center against the actual box/pill midpoints.
+  const centerY = (cy, fontSize) => cy + fontSize * 0.35
+
+  const SANS_BOLD = "'Liberation Sans','DejaVu Sans',Arial,sans-serif"
+
+  // This renderer has no true "Black"/"Heavy" weight sans font installed —
+  // font-weight="900" alone tops out looking like ordinary bold. To get the
+  // actual thick, heavy look, we re-trace each glyph with a matching-colour
+  // stroke on top of the fill. This is the standard SVG trick for faking a
+  // heavier weight when the real black-weight font file isn't available.
+  const heavyStroke = (fontSize) => (fontSize * 0.07).toFixed(2)
 
   // Type badge pill dimensions (match the template's pill size)
   const lp = LEFT.typePill, rp = RIGHT.typePill
@@ -108,45 +125,54 @@ function buildOverlaySvg(opts) {
   return `<svg xmlns="http://www.w3.org/2000/svg"
       width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 
-    <!-- ══ LEFT NAME ══ -->
-    <text x="${LEFT.nameBox.cx}" y="${LEFT.nameBox.cy}"
-      font-family="'Arial Black',Arial,sans-serif"
+    <!-- ══ LEFT NAME (sans, heavy weight via stroke, caps) ══ -->
+    <text x="${LEFT.nameBox.cx}" y="${centerY(LEFT.nameBox.cy, leftFontSize)}"
+      font-family="${SANS_BOLD}"
       font-size="${leftFontSize}" font-weight="900"
-      fill="#ffffff" text-anchor="middle"
-      dominant-baseline="central"
+      fill="#ffffff" stroke="#ffffff" stroke-width="${heavyStroke(leftFontSize)}"
+      stroke-linejoin="round" paint-order="stroke fill"
+      text-anchor="middle"
       letter-spacing="1">${preNameUp}</text>
 
-    <!-- ══ LEFT TYPE PILL ══ -->
+    <!-- ══ LEFT TYPE PILL (sans, heavy weight via stroke, caps, centered) ══ -->
     <rect x="${lp.x}" y="${lp.y}" width="${lp.w}" height="${lp.h}" rx="8"
-      fill="${preTypeColor}" opacity="0.92"/>
-    <text x="${lp.cx}" y="${lp.cy}"
-      font-family="Arial,sans-serif" font-size="16" font-weight="700"
-      fill="#ffffff" text-anchor="middle" dominant-baseline="central"
+      fill="${preTypeColor}"/>
+    <text x="${lp.cx}" y="${centerY(lp.cy, typeFontSize)}"
+      font-family="${SANS_BOLD}" font-size="${typeFontSize}" font-weight="900"
+      fill="#ffffff" stroke="#ffffff" stroke-width="${heavyStroke(typeFontSize)}"
+      stroke-linejoin="round" paint-order="stroke fill"
+      text-anchor="middle"
       letter-spacing="1">${preTypeLabel}</text>
 
-    <!-- ══ RIGHT NAME ══ -->
-    <text x="${RIGHT.nameBox.cx}" y="${RIGHT.nameBox.cy}"
-      font-family="'Arial Black',Arial,sans-serif"
+    <!-- ══ RIGHT NAME (sans, heavy weight via stroke, caps) ══ -->
+    <text x="${RIGHT.nameBox.cx}" y="${centerY(RIGHT.nameBox.cy, rightFontSize)}"
+      font-family="${SANS_BOLD}"
       font-size="${rightFontSize}" font-weight="900"
-      fill="#ffffff" text-anchor="middle"
-      dominant-baseline="central"
+      fill="#ffffff" stroke="#ffffff" stroke-width="${heavyStroke(rightFontSize)}"
+      stroke-linejoin="round" paint-order="stroke fill"
+      text-anchor="middle"
       letter-spacing="1">${evoNameUp}</text>
 
-    <!-- ══ RIGHT TYPE PILL ══ -->
+    <!-- ══ RIGHT TYPE PILL (sans, heavy weight via stroke, caps, centered) ══ -->
     <rect x="${rp.x}" y="${rp.y}" width="${rp.w}" height="${rp.h}" rx="8"
-      fill="${evoTypeColor}" opacity="0.92"/>
-    <text x="${rp.cx}" y="${rp.cy}"
-      font-family="Arial,sans-serif" font-size="16" font-weight="700"
-      fill="#ffffff" text-anchor="middle" dominant-baseline="central"
+      fill="${evoTypeColor}"/>
+    <text x="${rp.cx}" y="${centerY(rp.cy, typeFontSize)}"
+      font-family="${SANS_BOLD}" font-size="${typeFontSize}" font-weight="900"
+      fill="#ffffff" stroke="#ffffff" stroke-width="${heavyStroke(typeFontSize)}"
+      stroke-linejoin="round" paint-order="stroke fill"
+      text-anchor="middle"
       letter-spacing="1">${evoTypeLabel}</text>
 
     <!-- ══ BOTTOM CONGRATS BAR (bar spans y 813–968) ══ -->
     <text x="260" y="865"
-      font-family="Arial,sans-serif" font-size="24" font-weight="700"
+      font-family="${SANS_BOLD}" font-size="24" font-weight="700"
       fill="#ffffff">Congratulations!</text>
 
-    <text x="260" y="905"
-      font-family="Arial,sans-serif" font-size="21" fill="#cccccc">
+    <!-- xml:space="preserve" stops the space after "into" from being
+         collapsed away at the tspan boundary (that's why it rendered as
+         "intoCharmeleon!" before) -->
+    <text x="260" y="905" xml:space="preserve"
+      font-family="${SANS_BOLD}" font-size="21" fill="#cccccc">
       <tspan>${preNameRaw} evolved into </tspan><tspan fill="#e42b3c" font-weight="700">${evoNameRaw}</tspan><tspan>!</tspan>
     </text>
   </svg>`
@@ -190,14 +216,17 @@ async function buildEvolveImage(opts) {
     } catch {}
   }
 
-  // Right sprite — stage 2, drawn a bit larger, resting on the right podium
+  // Right sprite — stage 2, drawn noticeably larger, resting on the right
+  // podium. The podium ellipse is ~530px wide (x974–1504), so a 340px box
+  // still sits comfortably inside it with room either side.
   if (evoBuf) {
     try {
-      const boxW = 300, boxH = SPRITE_BOTTOM - SPRITE_TOP // 245
+      const boxW = 340, boxH = 280
       const s = await sharp(evoBuf)
         .resize(boxW, boxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png().toBuffer()
-      composites.push({ input: s, top: SPRITE_TOP, left: Math.round(RIGHT.podium.cx - boxW / 2) })
+      const bottom = SPRITE_BOTTOM + 25 // let it settle a touch further onto the podium
+      composites.push({ input: s, top: bottom - boxH, left: Math.round(RIGHT.podium.cx - boxW / 2) })
     } catch {}
   }
 
