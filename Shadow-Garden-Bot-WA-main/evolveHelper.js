@@ -2,6 +2,10 @@
  * Pokemon evolution card image generator.
  * Uses assets/evolve-bg.png as the exact background (1536×1024).
  * Overlays: Pokémon name, type, sprites, and congrats text via sharp + SVG.
+ *
+ * All coordinates below were measured directly off the background PNG
+ * (pixel-scanned for box borders / fills), not guessed — that's what was
+ * causing the sprite/text to overlap the boxes before.
  */
 
 const https = require('https')
@@ -53,27 +57,36 @@ function typeColor(type) {
   return map[(type || '').toLowerCase()] || '#777777'
 }
 
-// ── SVG text-only overlay (transparent background) ────────────────
-// Positions are measured against the 1536×1024 background template:
+// ── Layout constants (measured off assets/evolve-bg.png, 1536×1024) ──
 //
-//  Left zone
-//    Name box center ............. x=222,  y=200
-//    Type badge center ........... x=192,  y=276
-//    Sprite circle center ........ x=222,  y=555   (sprite drawn separately)
+//  Left column                          Right column
+//    Name box   x 59–510, y 283–370       Name box   x 1021–1473, y 283–370
+//    Type pill  x 175–395, y 396–446      Type pill  x 1135–1350, y 396–446
+//    Podium     x 30–560, y 669–772       Podium     x 974–1504, y 669–772
 //
-//  Right zone
-//    Name box center ............. x=1314, y=200
-//    Type badge center ........... x=1344, y=276
-//    Sprite circle center ........ x=1314, y=555   (sprite drawn separately)
+//  Bottom congrats bar: x 60–1480, y 813–968
+//    Star icon centered ~x=140   Divider ~x=235   Text starts ~x=260
 //
-//  Bottom congrats bar
-//    Line 1 (bold "Congratulations!") ...... x=155, y=768
-//    Line 2 ("[Pre] evolved into [Evo]!") .. x=155, y=800
-//
+const LEFT = {
+  nameBox:  { x: 59,  y: 283, w: 451, h: 87,  cx: 285,  cy: 326 },
+  typePill: { x: 175, y: 396, w: 220, h: 50,  cx: 285,  cy: 421 },
+  podium:   { cx: 295, top: 669, bottom: 772 },
+}
+const RIGHT = {
+  nameBox:  { x: 1021, y: 283, w: 452, h: 87, cx: 1247, cy: 326 },
+  typePill: { x: 1135, y: 396, w: 215, h: 50, cx: 1242, cy: 421 },
+  podium:   { cx: 1239, top: 669, bottom: 772 },
+}
+
+// Safe vertical zone for sprites: below the type pill, resting on the podium
+const SPRITE_TOP    = 460  // clears typePill bottom (446) with a margin
+const SPRITE_BOTTOM = 705  // sits just above the podium's front rim
+
+// ── SVG text overlay (transparent background) ─────────────────────
 function buildOverlaySvg(opts) {
   const { preName, preTypes, evoName, evoTypes } = opts
-  const preType = (preTypes  || [])[0] || 'normal'
-  const evoType = (evoTypes  || [])[0] || 'normal'
+  const preType = (preTypes || [])[0] || 'normal'
+  const evoType = (evoTypes || [])[0] || 'normal'
 
   const preNameUp = esc(String(preName).toUpperCase())
   const evoNameUp = esc(String(evoName).toUpperCase())
@@ -85,61 +98,56 @@ function buildOverlaySvg(opts) {
   const preTypeColor = typeColor(preType)
   const evoTypeColor = typeColor(evoType)
 
-  // Scale font size down for long names so they stay inside the box
-  // Left box inner width ≈ 320px  |  Right box inner width ≈ 390px
-  const leftFontSize  = Math.min(34, Math.max(18, Math.floor(320  / Math.max(preNameUp.length, 1) * 1.6)))
-  const rightFontSize = Math.min(34, Math.max(18, Math.floor(390 / Math.max(evoNameUp.length, 1) * 1.6)))
+  // Scale font size down for long names so they stay inside the name box
+  const leftFontSize  = Math.min(38, Math.max(20, Math.floor(LEFT.nameBox.w  / Math.max(preNameUp.length, 1) * 1.7)))
+  const rightFontSize = Math.min(38, Math.max(20, Math.floor(RIGHT.nameBox.w / Math.max(evoNameUp.length, 1) * 1.7)))
 
-  // Type badge pill dimensions
-  const typePillW = 130, typePillH = 34
+  // Type badge pill dimensions (match the template's pill size)
+  const lp = LEFT.typePill, rp = RIGHT.typePill
 
   return `<svg xmlns="http://www.w3.org/2000/svg"
       width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
 
-    <!-- ══ LEFT NAME (inside the white-outline box, center x=222 y=200) ══ -->
-    <text x="222" y="${200 + leftFontSize * 0.35}"
+    <!-- ══ LEFT NAME ══ -->
+    <text x="${LEFT.nameBox.cx}" y="${LEFT.nameBox.cy}"
       font-family="'Arial Black',Arial,sans-serif"
       font-size="${leftFontSize}" font-weight="900"
       fill="#ffffff" text-anchor="middle"
-      dominant-baseline="middle"
+      dominant-baseline="central"
       letter-spacing="1">${preNameUp}</text>
 
-    <!-- ══ LEFT TYPE (replace the grey TYPE pill, center x=192 y=276) ══ -->
-    <rect x="${192 - typePillW / 2}" y="${276 - typePillH / 2}"
-      width="${typePillW}" height="${typePillH}" rx="5"
+    <!-- ══ LEFT TYPE PILL ══ -->
+    <rect x="${lp.x}" y="${lp.y}" width="${lp.w}" height="${lp.h}" rx="8"
       fill="${preTypeColor}" opacity="0.92"/>
-    <text x="192" y="276"
-      font-family="Arial,sans-serif" font-size="15" font-weight="700"
-      fill="#ffffff" text-anchor="middle" dominant-baseline="middle"
+    <text x="${lp.cx}" y="${lp.cy}"
+      font-family="Arial,sans-serif" font-size="16" font-weight="700"
+      fill="#ffffff" text-anchor="middle" dominant-baseline="central"
       letter-spacing="1">${preTypeLabel}</text>
 
-    <!-- ══ RIGHT NAME (inside the red-outline box, center x=1314 y=200) ══ -->
-    <text x="1314" y="${200 + rightFontSize * 0.35}"
+    <!-- ══ RIGHT NAME ══ -->
+    <text x="${RIGHT.nameBox.cx}" y="${RIGHT.nameBox.cy}"
       font-family="'Arial Black',Arial,sans-serif"
       font-size="${rightFontSize}" font-weight="900"
       fill="#ffffff" text-anchor="middle"
-      dominant-baseline="middle"
+      dominant-baseline="central"
       letter-spacing="1">${evoNameUp}</text>
 
-    <!-- ══ RIGHT TYPE (replace the red TYPE pill, center x=1344 y=276) ══ -->
-    <rect x="${1344 - typePillW / 2}" y="${276 - typePillH / 2}"
-      width="${typePillW}" height="${typePillH}" rx="5"
+    <!-- ══ RIGHT TYPE PILL ══ -->
+    <rect x="${rp.x}" y="${rp.y}" width="${rp.w}" height="${rp.h}" rx="8"
       fill="${evoTypeColor}" opacity="0.92"/>
-    <text x="1344" y="276"
-      font-family="Arial,sans-serif" font-size="15" font-weight="700"
-      fill="#ffffff" text-anchor="middle" dominant-baseline="middle"
+    <text x="${rp.cx}" y="${rp.cy}"
+      font-family="Arial,sans-serif" font-size="16" font-weight="700"
+      fill="#ffffff" text-anchor="middle" dominant-baseline="central"
       letter-spacing="1">${evoTypeLabel}</text>
 
-    <!-- ══ BOTTOM CONGRATS BAR ══ -->
-    <!-- "Congratulations!" bold white -->
-    <text x="155" y="768"
-      font-family="Arial,sans-serif" font-size="22" font-weight="700"
+    <!-- ══ BOTTOM CONGRATS BAR (bar spans y 813–968) ══ -->
+    <text x="260" y="865"
+      font-family="Arial,sans-serif" font-size="24" font-weight="700"
       fill="#ffffff">Congratulations!</text>
 
-    <!-- "[PreName] evolved into [EvoName]!" -->
-    <text x="155" y="800"
-      font-family="Arial,sans-serif" font-size="20" fill="#cccccc">
-      <tspan>${preNameRaw} evolved into </tspan><tspan fill="#cc2222" font-weight="700">${evoNameRaw}</tspan><tspan>!</tspan>
+    <text x="260" y="905"
+      font-family="Arial,sans-serif" font-size="21" fill="#cccccc">
+      <tspan>${preNameRaw} evolved into </tspan><tspan fill="#e42b3c" font-weight="700">${evoNameRaw}</tspan><tspan>!</tspan>
     </text>
   </svg>`
 }
@@ -162,19 +170,7 @@ async function buildEvolveImage(opts) {
     base = await sharp(BG_PATH).png().toBuffer()
   } catch { return null }
 
-  // 2. Build the text overlay SVG and convert to PNG
-  let overlayBuf
-  try {
-    const svg = buildOverlaySvg(opts)
-    overlayBuf = await sharp(Buffer.from(svg)).png().toBuffer()
-  } catch { return null }
-
-  // 3. Composite text overlay onto background
-  try {
-    base = await sharp(base).composite([{ input: overlayBuf, top: 0, left: 0 }]).png().toBuffer()
-  } catch { return null }
-
-  // 4. Fetch official artwork sprites (high quality)
+  // 2. Fetch official artwork sprites (high quality)
   const artBase = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork'
   const [preBuf, evoBuf] = await Promise.all([
     opts.preId ? downloadBuffer(`${artBase}/${opts.preId}.png`) : Promise.resolve(null),
@@ -183,36 +179,42 @@ async function buildEvolveImage(opts) {
 
   const composites = []
 
-  // Left sprite — sits inside the left circle platform (center x=222, y=555)
-  // Size: 280×280, so top-left = (222-140, 555-260) = (82, 295)
+  // Left sprite — stage 1, smaller, resting on the left podium
   if (preBuf) {
     try {
-      const sz = 280
+      const boxW = 260, boxH = SPRITE_BOTTOM - SPRITE_TOP // 245
       const s = await sharp(preBuf)
-        .resize(sz, sz, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .resize(boxW, boxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png().toBuffer()
-      composites.push({ input: s, top: 555 - sz, left: 222 - Math.round(sz / 2) })
+      composites.push({ input: s, top: SPRITE_TOP, left: Math.round(LEFT.podium.cx - boxW / 2) })
     } catch {}
   }
 
-  // Right sprite — sits inside the right circle platform (center x=1314, y=555)
-  // Size: 340×340, so top-left = (1314-170, 555-320) = (1144, 235)
+  // Right sprite — stage 2, drawn a bit larger, resting on the right podium
   if (evoBuf) {
     try {
-      const sz = 340
+      const boxW = 300, boxH = SPRITE_BOTTOM - SPRITE_TOP // 245
       const s = await sharp(evoBuf)
-        .resize(sz, sz, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .resize(boxW, boxH, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png().toBuffer()
-      composites.push({ input: s, top: 555 - sz, left: 1314 - Math.round(sz / 2) })
+      composites.push({ input: s, top: SPRITE_TOP, left: Math.round(RIGHT.podium.cx - boxW / 2) })
     } catch {}
   }
 
-  // 5. Composite sprites onto the image
+  // 3. Composite sprites onto the background FIRST (so text/pills draw on top,
+  //    never behind the artwork — this is what fixed the overlap issue)
   if (composites.length) {
     try {
       base = await sharp(base).composite(composites).png().toBuffer()
     } catch {}
   }
+
+  // 4. Build the text/pill overlay SVG and composite it on top
+  try {
+    const svg = buildOverlaySvg(opts)
+    const overlayBuf = await sharp(Buffer.from(svg)).png().toBuffer()
+    base = await sharp(base).composite([{ input: overlayBuf, top: 0, left: 0 }]).png().toBuffer()
+  } catch { return null }
 
   return base
 }
