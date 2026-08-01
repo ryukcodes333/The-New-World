@@ -329,6 +329,96 @@ function buildDexCaption(data) {
   )
 }
 
+// ── Battle scene / XP reward helpers ────────────────────────────
+const TYPE_EMOJI = { fire:'🔥', water:'💧', grass:'🌿', electric:'⚡', psychic:'🔮', ghost:'👻', dragon:'🐉', dark:'🌑', fighting:'👊', poison:'☠️', ground:'🌍', rock:'🪨', ice:'❄️', bug:'🐛', flying:'🦅', normal:'⭐', steel:'⚙️', fairy:'✨' }
+
+function typeEmojiFor(p) {
+  const typeArr = Array.isArray(p?.types) ? p.types : (p?.types ? [p.types] : ['normal'])
+  return TYPE_EMOJI[(typeArr[0] || 'normal').toLowerCase()] || '⭐'
+}
+
+const BATTLE_INTROS = [
+  'It looks ready to fight!',
+  'It glares at you, tense and alert!',
+  'The air crackles with energy!',
+  'It bares its teeth, ready to strike!',
+  'It lets out a fierce battle cry!',
+  'Its eyes lock onto you!',
+]
+
+// XP needed for a Pokémon to reach the given level (mirrors the sqrt curve used elsewhere)
+function xpForNextLevel(level) { return 50 * level * level }
+
+// XP gained from a battle. isWin gives the full amount; a loss still gives a small consolation cut.
+function calcBattleXp(opponentLevel, isWin) {
+  const base = 20 + (opponentLevel || 20) * 6
+  const mult = isWin ? (1 + Math.random() * 0.4) : (0.20 + Math.random() * 0.15)
+  return Math.max(1, Math.round(base * mult))
+}
+
+function calcBattleCoins(opponentLevel) {
+  return Math.max(50, Math.round((50 + (opponentLevel || 20) * 15) * (0.8 + Math.random() * 0.4)))
+}
+
+// 25% chance of a small item drop on victory
+function rollItemReward() {
+  if (Math.random() > 0.25) return null
+  const pool = ['pokeball', 'greatball', 'potion', 'superpotion']
+  const key  = pool[Math.floor(Math.random() * pool.length)]
+  const item = SHOP_ITEMS[key]
+  return item ? { key, label: `${item.emoji} ${item.name} x1` } : null
+}
+
+// ── Shared "battle scene" opener — used by wild .fight, gym battles, and PvP .battle ──
+function buildBattleSceneText({ playerPokemon, wildPokemon, introText, wildEmoji, playerEmoji, opponentLabel = 'Wild' }) {
+  const moves = Array.isArray(playerPokemon.moves) ? playerPokemon.moves : []
+  return (
+    `⚔️ *A ${opponentLabel.toLowerCase() === 'wild' ? 'wild' : opponentLabel} ${wildPokemon.name} appeared!*\n\n` +
+    `_${introText}_ ${wildEmoji}\n\n` +
+    `*🐾 ${playerPokemon.name}*  ${playerEmoji}\n` +
+    `├ ❤️ HP: ${playerPokemon.hp}/${playerPokemon.maxHp}\n` +
+    `├ ⭐ Lv. ${playerPokemon.level}\n` +
+    `└ ⚔️ Status: ${playerPokemon.status || 'Ready'}\n\n` +
+    `        ⚡ VS ⚡\n\n` +
+    `*${wildEmoji} ${opponentLabel} ${wildPokemon.name}*\n` +
+    `├ ❤️ HP: ${wildPokemon.hp}/${wildPokemon.maxHp}\n` +
+    `├ ⭐ Lv. ${wildPokemon.level}\n` +
+    `└ ⚔️ Status: ${wildPokemon.status || 'Wild'}\n\n` +
+    `━━━━━━━━━━━━━━━━━\n\n` +
+    `*🎮 Choose your move*\n` +
+    `├ ① ${moves[0] || 'Tackle'}\n` +
+    `├ ② ${moves[1] || 'Growl'}\n` +
+    `├ ③ ${moves[2] || '-'}\n` +
+    `└ ④ ${moves[3] || '-'}\n\n` +
+    `> Use *.move <1-4>* to attack\n` +
+    `> Use *.flee* to run away`
+  )
+}
+
+// ── Fainted mid-battle with no other Pokémon to switch to — still gains consolation XP ──
+function buildFaintXpText({ pokemon, xpGained }) {
+  return (
+    `📚 *Battle Experience*\n\n` +
+    `💧 *${pokemon.name}* learned from the battle.\n\n` +
+    `✨ *Experience:* +${xpGained} XP\n` +
+    `📊 *Level:* ${pokemon.level} • ${pokemon.xp}/${pokemon.nextLevelXp} XP`
+  )
+}
+
+// ── Pokémon won the battle — full XP/level/coin/item recap ──
+function buildVictoryText({ pokemon, oldLevel, xpEarned, coinsEarned, itemReward }) {
+  return (
+    `📚 *Battle Experience*\n\n` +
+    `🎉 *${pokemon.name}* won the battle!\n\n` +
+    `✨ *Experience:* +${xpEarned} XP\n` +
+    `📈 *Level Up:* ${oldLevel} → ${pokemon.level} ⬆️\n` +
+    `💰 *PokéCoins:* +${coinsEarned}\n` +
+    `🎒 *Items:* ${itemReward || 'None'}\n\n` +
+    `━━━━━━━━━━━━━━━━━\n\n` +
+    `_"${pokemon.name} is getting stronger every battle!"_ ⭐`
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────
 module.exports = {
 
@@ -2500,10 +2590,13 @@ module.exports = {
       turn: 1,
     }
 
-    const moveMenu =
-      `*📋 Moves:*\n` +
-      moves.map((m, i) => `  *${i + 1}.* ${m}`).join('\n') +
-      `\n\n> *.move <1-${moves.length}>* to attack  |  *.flee* to escape`
+    const sceneText = buildBattleSceneText({
+      playerPokemon: { name: myPoke.name, level: myLevel, hp: myMaxHp, maxHp: myMaxHp, status: 'Ready', moves },
+      wildPokemon:   { name: wild.name,   level: wildLevel, hp: wildMaxHp, maxHp: wildMaxHp, status: 'Wild' },
+      introText:     BATTLE_INTROS[Math.floor(Math.random() * BATTLE_INTROS.length)],
+      wildEmoji:     typeEmojiFor(wild),
+      playerEmoji:   typeEmojiFor(myPoke),
+    })
 
     // ── Try to send a Pokemon-style battle scene image ─────────
     try {
@@ -2523,27 +2616,15 @@ module.exports = {
       if (imgBuf) {
         await sock.sendMessage(jid, {
           image:   imgBuf,
-          caption: `⚔️ *WILD BATTLE!*\n\n${moveMenu}`,
+          caption: sceneText,
           mimetype: 'image/png',
         }, { quoted: msg })
         return
       }
     } catch {}
 
-    // ── Fallback: text HP bars ─────────────────────────────────
-    const bar = (cur, max) => {
-      const f = Math.max(0, Math.round(cur / max * 10))
-      return '🟩'.repeat(f) + '⬜'.repeat(10 - f)
-    }
-    await sock.sendMessage(jid, {
-      text:
-        `⚔️ *WILD BATTLE!*\n\n` +
-        `🌿 *Wild ${wild.name}* (Lv ${wildLevel})\n` +
-        `❤️ ${bar(wildMaxHp, wildMaxHp)} ${wildMaxHp}/${wildMaxHp} HP\n\n` +
-        `⚡ *${myPoke.name}* (Lv ${myLevel})\n` +
-        `❤️ ${bar(myMaxHp, myMaxHp)} ${myMaxHp}/${myMaxHp} HP\n\n` +
-        `━━━━━━━━━━━━━━\n${moveMenu}`,
-    }, { quoted: msg })
+    // ── Fallback: text ───────────────────────────────────────────
+    await sock.sendMessage(jid, { text: sceneText }, { quoted: msg })
   },
 
   // ── .move - use a move during wild OR pvp battle ──────────────
@@ -2673,11 +2754,20 @@ module.exports = {
         if (gymState.gymPokeIdx >= gym.leaderPokemon.length) {
           // ── All gym Pokemon defeated - WIN ─────────────
           delete pendingGymBattle[sender]
+          const poke      = gymState.myPokemon
+          const oldLevel  = poke.level || 1
+          const xpEarned  = gym.xp
+          const coinsEarned = gym.coins
+          const itemRewardObj = rollItemReward()
+          const itemReward    = itemRewardObj ? itemRewardObj.label : null
+          const newXp    = (poke.xp || 0) + xpEarned
+          const newLevel = Math.min(100, Math.floor(Math.sqrt(newXp / 50)) + 1)
+          try { await db.updatePokemon(poke._id, { xp: newXp, level: newLevel }) } catch {}
+
           const u = user || await db.getOrCreateUser(sender).catch(() => ({}))
           await db.updateUser(sender, {
             pokemon_badges: (u.pokemon_badges || 0) + 1,
-            xp:     (u.xp || 0) + gym.xp,
-            wallet: (u.wallet || 0) + gym.coins,
+            wallet: (u.wallet || 0) + coinsEarned,
           }).catch(() => {})
           const newBadges = (u.pokemon_badges || 0) + 1
           const BADGE_NUMS = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣']
@@ -2685,21 +2775,22 @@ module.exports = {
           let winImg = null
           try {
             winImg = await buildBattleImage({
-              myName:   gymState.myPokemon.name, myLevel:  myLvl,
+              myName:   poke.name, myLevel:  newLevel,
               myHp:     gymState.myHp, myMaxHp: gymState.myMaxHp,
-              myId:     gymState.myPokemon.pokemon_id || null,
+              myId:     poke.pokemon_id || null,
               wildName: gymState.gymPokemon.name, wildLevel: gymState.gymPokemon.level || 10,
               wildHp:   0, wildMaxHp: gymState.gymMaxHp,
               wildId:   null,
               logLines: [`${gymState.gymPokemon.name} fainted!`, `Victory! ${gym.badge} earned!`],
             })
           } catch {}
+          const victoryText = buildVictoryText({
+            pokemon:  { name: poke.name, level: newLevel },
+            oldLevel, xpEarned, coinsEarned, itemReward,
+          })
           const winCaption =
-            `🏆 *Victory!*\n\n` +
-            `*${gym.leader}* was defeated!\n\n` +
-            `🏅 *${gym.badge}* earned!\n` +
-            `💰 +${gym.coins.toLocaleString()} PokeCoins\n` +
-            `✨ +${gym.xp} XP\n\n` +
+            `🏆 *${gym.leader}* was defeated! 🏅 *${gym.badge}* earned!\n\n` +
+            `${victoryText}\n\n` +
             `Badges: ${progress}\n\n` +
             (newBadges < 8 ? `💡 Use \`.gym\` to view your next Gym.` : `🌟 All 8 badges! You're a Pokemon Champion!`)
           if (winImg) return sock.sendMessage(jid, { image: winImg, caption: winCaption, mimetype: 'image/png' }, { quoted: msg })
@@ -2910,46 +3001,53 @@ module.exports = {
 
     // ── Wild fainted? ──────────────────────────────────────────
     if (battle.wildHp <= 0) {
-      const xpGain = 1
+      const poke        = battle.myPokemon
+      const oldLevel     = poke.level || 1
+      const xpEarned     = calcBattleXp(battle.wild.level, true)
+      const coinsEarned  = calcBattleCoins(battle.wild.level)
+      const itemRewardObj = rollItemReward()
+      const itemReward    = itemRewardObj ? itemRewardObj.label : null
+
+      const newXp    = (poke.xp || 0) + xpEarned
+      const newLevel = Math.min(100, Math.floor(Math.sqrt(newXp / 50)) + 1)
+
+      try { await db.updatePokemon(poke._id, { xp: newXp, level: newLevel }) } catch {}
       const u = user || await db.getOrCreateUser(sender)
       await db.updateUser(sender, {
-        xp:           (u.xp || 0) + xpGain,
+        wallet:       (u.wallet || 0) + coinsEarned,
         pokemon_wins: (u.pokemon_wins || 0) + 1,
       }).catch(() => {})
+
       delete activeBattles[sender]
       pendingPokemon[jid] = { ...battle.wild, spawnedAt: Date.now(), weakened: true }
 
-      const faintText =
-        `💫 *Wild ${battle.wild.name} fainted!*\n\n` +
-        `⭐ *+${xpGain} XP* earned!\n\n` +
-        `🎯 *${battle.wild.name}* is weakened - use *#catch <slot> | <ball>* to capture it! _(90 sec)_`
+      const victoryText = buildVictoryText({
+        pokemon:  { name: poke.name, level: newLevel },
+        oldLevel, xpEarned, coinsEarned, itemReward,
+      })
+      const catchHint = `\n\n🎯 *${battle.wild.name}* is weakened - use *#catch <slot> | <ball>* to capture it! _(90 sec)_`
 
       try {
         const imgBuf = await buildBattleImage({
-          myName:    battle.myPokemon.name,
-          myLevel:   battle.myPokemon.level || 1,
+          myName:    poke.name,
+          myLevel:   newLevel,
           myHp:      battle.myHp,
           myMaxHp:   battle.myMaxHp,
-          myId:      battle.myPokemon.pokemon_id || battle.myPokemon.id || null,
+          myId:      poke.pokemon_id || poke.id || null,
           wildName:  battle.wild.name,
           wildLevel: battle.wild.level,
           wildHp:    0,
           wildMaxHp: battle.wildMaxHp,
           wildId:    battle.wild.id || null,
-          logLines:  [`${battle.wild.name} fainted!`, `+${xpGain} XP earned!`],
+          logLines:  [`${battle.wild.name} fainted!`, `+${xpEarned} XP earned!`],
         })
         if (imgBuf) {
-          await sock.sendMessage(jid, { image: imgBuf, caption: faintText, mimetype: 'image/png' }, { quoted: msg })
+          await sock.sendMessage(jid, { image: imgBuf, caption: victoryText + catchHint, mimetype: 'image/png' }, { quoted: msg })
           return
         }
       } catch {}
 
-      return await sock.sendMessage(jid, {
-        text: `⚔️ *TURN ${battle.turn}*\n\n` +
-          `⚡ *${battle.myPokemon.name}* used *${moveName}*!\n` +
-          (crit ? `✨ *Critical hit!* (-${playerDmg} HP)\n\n` : `(-${playerDmg} HP)\n\n`) +
-          faintText,
-      }, { quoted: msg })
+      return await sock.sendMessage(jid, { text: victoryText + catchHint }, { quoted: msg })
     }
 
     // ── Wild attacks back ──────────────────────────────────────
@@ -2966,44 +3064,66 @@ module.exports = {
     logLines.push(`${battle.wild.name} used ${wildMove}!`)
     logLines.push(wildCrit ? `💥 Critical hit! (-${wildDmg} HP)` : `(-${wildDmg} HP)`)
 
-    // ── Player fainted? ────────────────────────────────────────
+    // ── Player fainted? (no other party Pokémon to switch to → consolation XP) ──
     if (battle.myHp <= 0) {
       delete activeBattles[sender]
       delete pendingPokemon[jid]
-      const faintText = `💔 *${battle.myPokemon.name} fainted!*\n\n_The wild ${battle.wild.name} fled._ 🖤`
+
+      const poke     = battle.myPokemon
+      const xpGained = calcBattleXp(battle.wild.level, false)
+      const newXp    = (poke.xp || 0) + xpGained
+      const newLevel = Math.min(100, Math.floor(Math.sqrt(newXp / 50)) + 1)
+      const nextLevelXp = xpForNextLevel(newLevel)
+
+      try { await db.updatePokemon(poke._id, { xp: newXp, level: newLevel }) } catch {}
+
+      const faintText = buildFaintXpText({
+        pokemon:  { name: poke.name, level: newLevel, xp: newXp, nextLevelXp },
+        xpGained,
+      })
+      const footer = `\n\n💔 *${poke.name} fainted!* The wild ${battle.wild.name} fled. 🖤`
 
       try {
         const imgBuf = await buildBattleImage({
-          myName:    battle.myPokemon.name,
-          myLevel:   battle.myPokemon.level || 1,
+          myName:    poke.name,
+          myLevel:   newLevel,
           myHp:      0,
           myMaxHp:   battle.myMaxHp,
-          myId:      battle.myPokemon.pokemon_id || battle.myPokemon.id || null,
+          myId:      poke.pokemon_id || poke.id || null,
           wildName:  battle.wild.name,
           wildLevel: battle.wild.level,
           wildHp:    battle.wildHp,
           wildMaxHp: battle.wildMaxHp,
           wildId:    battle.wild.id || null,
-          logLines:  [`${battle.myPokemon.name} fainted!`],
+          logLines:  [`${poke.name} fainted!`],
         })
         if (imgBuf) {
-          await sock.sendMessage(jid, { image: imgBuf, caption: faintText, mimetype: 'image/png' }, { quoted: msg })
+          await sock.sendMessage(jid, { image: imgBuf, caption: faintText + footer, mimetype: 'image/png' }, { quoted: msg })
           return
         }
       } catch {}
 
-      return await sock.sendMessage(jid, {
-        text: `⚔️ *TURN ${battle.turn}*\n\n` +
-          logLines.map(l => l.startsWith('✨') || l.startsWith('💥') ? l : `  ${l}`).join('\n') +
-          `\n\n${faintText}`,
-      }, { quoted: msg })
+      return await sock.sendMessage(jid, { text: faintText + footer }, { quoted: msg })
     }
 
-    // ── Battle continues - send battle scene image ─────────────
-    const moveMenu =
-      `*📋 Moves:*\n` +
-      battle.moves.map((m, i) => `  *${i + 1}.* ${m}`).join('\n') +
-      `\n\n> *.move <1-${battle.moves.length}>* to attack  |  *.flee* to escape`
+    // ── Battle continues - live HP in the same battle-scene template ──
+    const hpStatus = (cur, max) => cur >= max ? 'Ready' : cur / max > 0.5 ? 'Hurt' : cur / max > 0.2 ? 'Badly Hurt' : 'Critical'
+
+    const sceneText = buildBattleSceneText({
+      playerPokemon: {
+        name: battle.myPokemon.name, level: battle.myPokemon.level || 1,
+        hp: battle.myHp, maxHp: battle.myMaxHp,
+        status: hpStatus(battle.myHp, battle.myMaxHp), moves: battle.moves,
+      },
+      wildPokemon: {
+        name: battle.wild.name, level: battle.wild.level,
+        hp: battle.wildHp, maxHp: battle.wildMaxHp,
+        status: hpStatus(battle.wildHp, battle.wildMaxHp),
+      },
+      introText:   logLines.join(' '),
+      wildEmoji:   typeEmojiFor(battle.wild),
+      playerEmoji: typeEmojiFor(battle.myPokemon),
+    })
 
     try {
       const imgBuf = await buildBattleImage({
@@ -3022,30 +3142,15 @@ module.exports = {
       if (imgBuf) {
         await sock.sendMessage(jid, {
           image:    imgBuf,
-          caption:  `⚔️ *TURN ${battle.turn - 1}*\n\n${moveMenu}`,
+          caption:  sceneText,
           mimetype: 'image/png',
         }, { quoted: msg })
         return
       }
     } catch {}
 
-    // ── Fallback: text HP bars ─────────────────────────────────
-    const bar = (cur, max) => {
-      const f = Math.max(0, Math.round(cur / max * 10))
-      return '🟩'.repeat(f) + '⬜'.repeat(10 - f)
-    }
-    const fullLog = [
-      `⚔️ *TURN ${battle.turn - 1}*\n`,
-      ...logLines,
-      `\n━━━━━━━━━━━━━━`,
-      `🌿 *${battle.wild.name}* (Lv ${battle.wild.level})`,
-      `❤️ ${bar(battle.wildHp, battle.wildMaxHp)} ${battle.wildHp}/${battle.wildMaxHp} HP`,
-      ``,
-      `⚡ *${battle.myPokemon.name}* (Lv ${battle.myPokemon.level || 1})`,
-      `❤️ ${bar(battle.myHp, battle.myMaxHp)} ${battle.myHp}/${battle.myMaxHp} HP`,
-      `\n${moveMenu}`,
-    ]
-    await sock.sendMessage(jid, { text: fullLog.join('\n') }, { quoted: msg })
+    // ── Fallback: text ───────────────────────────────────────────
+    await sock.sendMessage(jid, { text: sceneText }, { quoted: msg })
   },
 
   // ── .flee - escape from wild battle ───────────────────────────
