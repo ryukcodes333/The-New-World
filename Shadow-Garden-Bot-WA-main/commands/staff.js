@@ -54,42 +54,37 @@ module.exports = {
   // Exported helper — used by index.js for gamble/pokemon group checks
   loadGroupDisabled,
 
-  // ── .mods - always use actual participant JIDs ─────────────────
-  async mods({ sock, jid, msg, reply, isGroup, sender, pushName }) {
+  // ── .mods - sends staff as tappable contact cards ───────────────
+  async mods({ sock, jid, msg, reply, isGroup }) {
     const allStaff     = await db.getMods()
     const modList      = allStaff.filter(u => u.role === 'mod')
     const guardianList = allStaff.filter(u => u.role === 'guardian')
+    const combined     = [...modList, ...guardianList]
+
+    if (!combined.length) return reply('❌ No mods or guardians set yet.')
 
     // Build phoneToJid map from current group to get real JIDs (avoids LID display)
     const phoneToJid = isGroup ? await buildPhoneMap(sock, jid) : {}
 
-    // Mentions use real JIDs (could be @lid or @s.whatsapp.net)
-    const allMentions = [
-      ...modList.map(u => resolveJid(u.phone, phoneToJid)),
-      ...guardianList.map(u => resolveJid(u.phone, phoneToJid)),
-    ]
+    // Build one vCard per staff member
+    const contacts = combined.map(u => {
+      const label = u.role === 'mod' ? 'Mod' : 'Guardian'
+      const waJid = resolveJid(u.phone, phoneToJid)
+      const vcard =
+        `BEGIN:VCARD\n` +
+        `VERSION:3.0\n` +
+        `FN:${label} — ${u.phone}\n` +
+        `TEL;type=CELL;type=VOICE;waid=${u.phone}:+${u.phone}\n` +
+        `END:VCARD`
+      return { displayName: `${label} — ${u.phone}`, vcard, waJid }
+    })
 
-    // Display text always uses just the phone number (not the @lid number)
-    const callerName = pushName || sender || 'there'
-    const modLines = modList.length
-      ? modList.map(u => `⌬ @${u.phone}`).join('\n')
-      : '(none)'
-
-    const guardianLines = guardianList.length
-      ? guardianList.map(u => `◈ @${u.phone}`).join('\n')
-      : '(none)'
-
-    const text =
-      `╔═════ ⋆⋅☆⋅⋆ ═════╗\n` +
-      `          👑 𝗠𝗢𝗗𝗦 👑\n` +
-      `╚═════ ⋆⋅☆⋅⋆ ═════╝\n\n` +
-      `${modLines}\n\n` +
-      `╔════ ⋆⋅🛡️⋅⋆ ════╗\n` +
-      `         𝗚𝗨𝗔𝗥𝗗𝗜𝗔𝗡𝗦\n` +
-      `╚════ ⋆⋅⚔️⋅⋆ ════╝\n\n` +
-      `${guardianLines}\n\n` +
-      `> *DO NOT* spam their DMs to *avoid getting blocked* 🚫`
-    await sock.sendMessage(jid, { text, mentions: allMentions }, { quoted: msg })
+    // Send as one message containing multiple contact cards
+    await sock.sendMessage(
+      jid,
+      { contacts: { displayName: `${combined.length} Staff Contacts`, contacts } },
+      { quoted: msg }
+    )
   },
 
   async modlist(ctx) { return module.exports.mods(ctx) },
