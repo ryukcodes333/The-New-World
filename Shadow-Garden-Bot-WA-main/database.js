@@ -322,7 +322,11 @@ async function getOrCreateUser(phone, name, jid) {
 
 async function updateUser(phone, updates) {
   phone = cleanPhone(phone)
-  const u = await User.findOneAndUpdate({ phone }, { $set: updates }, { new: true, upsert: false }).lean()
+  const u = await User.findOneAndUpdate(
+    { phone },
+    { $set: updates, $setOnInsert: { phone, name: phone, wallet: 0, bank: 500, gems: 0, xp: 0, level: 1 } },
+    { new: true, upsert: true }
+  ).lean()
   return u
 }
 
