@@ -25,6 +25,16 @@ async function buildPhoneMap(sock, jid) {
 
 const STAFF_ROLES = { MOD: 'mod', GUARDIAN: 'guardian', CARD_MAKER: 'card_maker' }
 
+// ── Parse + validate a typed phone number (e.g. "2349068124852") ─
+// Strips '+', spaces, dashes. Rejects anything that isn't a plausible
+// full international number (avoids saving WhatsApp LIDs by mistake).
+function parseNumberArg(raw) {
+  if (!raw) return null
+  const cleaned = raw.replace(/[^0-9]/g, '')
+  if (cleaned.length < 8 || cleaned.length > 15) return null
+  return cleaned
+}
+
 // ── Per-group command disable (in-memory + DB backed) ────────────
 const groupDisabled = {}
 
@@ -90,40 +100,36 @@ module.exports = {
   async modlist(ctx) { return module.exports.mods(ctx) },
 
   // ── Role management ───────────────────────────────────────────
-  async addmod({ reply, sock, jid, msg, isOwner, isMod }) {
+  async addmod({ reply, sock, jid, msg, args, isOwner, isMod }) {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
-    if (!mentioned.length) return reply('❌ Usage: `.addmod @user`')
-    for (const jidM of mentioned) await db.updateUser(jidM.split('@')[0].split(':')[0], { role: STAFF_ROLES.MOD })
-    const names = mentioned.map(j => `@${j.split('@')[0].split(':')[0]}`).join(', ')
-    await sock.sendMessage(jid, { text: `✅ *MOD ADDED*\n\n${names} is now a *Moderator*.`, mentions: mentioned }, { quoted: msg })
+    const phone = parseNumberArg(args[0])
+    if (!phone) return reply('❌ Usage: `.addmod <number>`\ne.g. `.addmod 2349068124852`\n(full number with country code, no + or spaces)')
+    await db.updateUser(phone, { role: STAFF_ROLES.MOD })
+    await sock.sendMessage(jid, { text: `✅ *MOD ADDED*\n\n@${phone} is now a *Moderator*.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
-  async removemod({ reply, sock, jid, msg, isOwner }) {
+  async removemod({ reply, sock, jid, msg, args, isOwner }) {
     if (!isOwner) return reply('*🚫 Access Denied*')
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
-    if (!mentioned.length) return reply('❌ Usage: `.removemod @user`')
-    for (const jidM of mentioned) await db.updateUser(jidM.split('@')[0].split(':')[0], { role: 'member' })
-    const names = mentioned.map(j => `@${j.split('@')[0].split(':')[0]}`).join(', ')
-    await sock.sendMessage(jid, { text: `✅ *MOD REMOVED*\n\n${names} is no longer a moderator.`, mentions: mentioned }, { quoted: msg })
+    const phone = parseNumberArg(args[0])
+    if (!phone) return reply('❌ Usage: `.removemod <number>`\ne.g. `.removemod 2349068124852`')
+    await db.updateUser(phone, { role: 'member' })
+    await sock.sendMessage(jid, { text: `✅ *MOD REMOVED*\n\n@${phone} is no longer a moderator.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
-  async addguardian({ reply, sock, jid, msg, isOwner, isMod }) {
+  async addguardian({ reply, sock, jid, msg, args, isOwner, isMod }) {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
-    if (!mentioned.length) return reply('❌ Usage: `.addguardian @user`')
-    for (const jidM of mentioned) await db.updateUser(jidM.split('@')[0].split(':')[0], { role: STAFF_ROLES.GUARDIAN })
-    const names = mentioned.map(j => `@${j.split('@')[0].split(':')[0]}`).join(', ')
-    await sock.sendMessage(jid, { text: `✅ *GUARDIAN ADDED*\n\n${names} is now a *Guardian*.`, mentions: mentioned }, { quoted: msg })
+    const phone = parseNumberArg(args[0])
+    if (!phone) return reply('❌ Usage: `.addguardian <number>`\ne.g. `.addguardian 2349068124852`')
+    await db.updateUser(phone, { role: STAFF_ROLES.GUARDIAN })
+    await sock.sendMessage(jid, { text: `✅ *GUARDIAN ADDED*\n\n@${phone} is now a *Guardian*.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
-  async removeguardian({ reply, sock, jid, msg, isOwner, isMod }) {
+  async removeguardian({ reply, sock, jid, msg, args, isOwner, isMod }) {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || []
-    if (!mentioned.length) return reply('❌ Usage: `.removeguardian @user`')
-    for (const jidM of mentioned) await db.updateUser(jidM.split('@')[0].split(':')[0], { role: 'member' })
-    const names = mentioned.map(j => `@${j.split('@')[0].split(':')[0]}`).join(', ')
-    await sock.sendMessage(jid, { text: `✅ *GUARDIAN REMOVED*\n\n${names} is no longer a guardian.`, mentions: mentioned }, { quoted: msg })
+    const phone = parseNumberArg(args[0])
+    if (!phone) return reply('❌ Usage: `.removeguardian <number>`\ne.g. `.removeguardian 2349068124852`')
+    await db.updateUser(phone, { role: 'member' })
+    await sock.sendMessage(jid, { text: `✅ *GUARDIAN REMOVED*\n\n@${phone} is no longer a guardian.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
   async recruit({ sock, jid, msg, reply, isOwner, isMod, isGuardian }) {
