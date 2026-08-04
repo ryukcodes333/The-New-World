@@ -65,6 +65,8 @@ const userSchema = new mongoose.Schema({
   profile_frame:  { type: Number, default: 1 },
   equipped_frame: { type: String, default: null },
   jid:            { type: String, unique: true, sparse: true },
+  work_bank:      { type: Number, default: 0 },
+  work_session:   { type: String, default: null },  // JSON blob: active business shift state
 }, { timestamps: true })
 
 const groupSchema = new mongoose.Schema({
@@ -322,9 +324,16 @@ async function getOrCreateUser(phone, name, jid) {
 
 async function updateUser(phone, updates) {
   phone = cleanPhone(phone)
+  const defaults = { phone, name: phone, wallet: 0, bank: 500, gems: 0, xp: 0, level: 1 }
+  // Only apply defaults for fields NOT already present in `updates`,
+  // otherwise Mongo throws "would create a conflict" (same path in $set + $setOnInsert)
+  const setOnInsert = {}
+  for (const key of Object.keys(defaults)) {
+    if (!(key in updates)) setOnInsert[key] = defaults[key]
+  }
   const u = await User.findOneAndUpdate(
     { phone },
-    { $set: updates, $setOnInsert: { phone, name: phone, wallet: 0, bank: 500, gems: 0, xp: 0, level: 1 } },
+    { $set: updates, $setOnInsert: setOnInsert },
     { new: true, upsert: true }
   ).lean()
   return u
