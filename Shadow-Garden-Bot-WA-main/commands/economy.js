@@ -66,6 +66,161 @@ const CD_BONUS  = 4  * 3600
 // ── Pending .pay confirmations ─────────────────────────────────────────────
 const pendingPay = {}
 
+// ═══════════════════════════════════════════════════════════════════════
+// WORK SYSTEM — business management (replaces old instant .work payout)
+// ═══════════════════════════════════════════════════════════════════════
+
+const BUSINESSES = {
+  1: { key: 'burger',      emoji: '🍔', name: 'Burger Restaurant', profitMin: 2000,  profitMax: 4500,  shiftMin: 20, shiftMax: 40,  empMin: 6,  empMax: 12 },
+  2: { key: 'coffee',      emoji: '☕', name: 'Coffee Shop',       profitMin: 1500,  profitMax: 3500,  shiftMin: 15, shiftMax: 30,  empMin: 3,  empMax: 7  },
+  3: { key: 'supermarket', emoji: '🛒', name: 'Supermarket',       profitMin: 4000,  profitMax: 8000,  shiftMin: 30, shiftMax: 60,  empMin: 10, empMax: 20 },
+  4: { key: 'factory',     emoji: '🏭', name: 'Factory',           profitMin: 8000,  profitMax: 15000, shiftMin: 45, shiftMax: 90,  empMin: 15, empMax: 25 },
+  5: { key: 'tech',        emoji: '💻', name: 'Tech Company',      profitMin: 12000, profitMax: 25000, shiftMin: 60, shiftMax: 120, empMin: 8,  empMax: 16 },
+}
+
+// Random morning scenarios. Each choice nudges revenue/expenses/happiness.
+// revenueMod / expenseMod are % modifiers applied to the final payout.
+const WORK_SCENARIOS = [
+  {
+    text: '🔴 A customer is requesting a refund over a bad order.',
+    choices: [
+      { label: 'Give the refund',        revenueMod: -0.05, expenseMod: 0,     happiness: +2 },
+      { label: 'Offer a replacement',    revenueMod: -0.02, expenseMod: +0.01, happiness: +4 },
+      { label: 'Deny the refund',        revenueMod: 0,      expenseMod: 0,    happiness: -6 },
+    ],
+  },
+  {
+    text: '💬 An employee is asking for a raise.',
+    choices: [
+      { label: 'Give the raise',         revenueMod: 0,      expenseMod: +0.08, happiness: +10 },
+      { label: 'Offer a small bonus',    revenueMod: 0,      expenseMod: +0.03, happiness: +4  },
+      { label: 'Turn them down',         revenueMod: -0.03,  expenseMod: 0,     happiness: -8  },
+    ],
+  },
+  {
+    text: '🚚 The delivery truck is running late.',
+    choices: [
+      { label: 'Wait it out',            revenueMod: -0.04, expenseMod: 0,      happiness: 0  },
+      { label: 'Pay for express delivery', revenueMod: 0,   expenseMod: +0.05,  happiness: +2 },
+      { label: 'Cancel the order',       revenueMod: -0.08, expenseMod: -0.02,  happiness: -2 },
+    ],
+  },
+  {
+    text: '🛠️ A piece of equipment just broke down.',
+    choices: [
+      { label: 'Repair it now',          revenueMod: -0.02, expenseMod: +0.06,  happiness: +1 },
+      { label: 'Work around it',         revenueMod: -0.07, expenseMod: 0,      happiness: -3 },
+      { label: 'Rent a replacement',     revenueMod: 0,     expenseMod: +0.09,  happiness: +2 },
+    ],
+  },
+  {
+    text: '📦 Supplies are running low.',
+    choices: [
+      { label: 'Order extra stock',      revenueMod: +0.03, expenseMod: +0.07, happiness: +1 },
+      { label: 'Ration what you have',   revenueMod: -0.05, expenseMod: 0,     happiness: -2 },
+      { label: 'Ignore it for now',      revenueMod: -0.10, expenseMod: 0,     happiness: -4 },
+    ],
+  },
+  {
+    text: '⭐ An employee exceeded their sales target!',
+    choices: [
+      { label: 'Reward them',            revenueMod: +0.05, expenseMod: +0.02, happiness: +8 },
+      { label: 'Give recognition only',  revenueMod: +0.03, expenseMod: 0,     happiness: +4 },
+      { label: 'Say nothing',            revenueMod: +0.02, expenseMod: 0,     happiness: -3 },
+    ],
+  },
+  {
+    text: '🌟 A VIP customer just walked in.',
+    choices: [
+      { label: 'Give VIP treatment',     revenueMod: +0.10, expenseMod: +0.03, happiness: +3 },
+      { label: 'Treat them normally',    revenueMod: +0.02, expenseMod: 0,     happiness: 0  },
+    ],
+  },
+  {
+    text: '📉 Inventory shortage is slowing things down.',
+    choices: [
+      { label: 'Emergency restock',      revenueMod: 0,     expenseMod: +0.08, happiness: +1 },
+      { label: 'Push through short',     revenueMod: -0.09, expenseMod: 0,     happiness: -4 },
+    ],
+  },
+  {
+    text: '⚡ A power outage just hit the building.',
+    choices: [
+      { label: 'Run backup generator',   revenueMod: -0.02, expenseMod: +0.06, happiness: +1 },
+      { label: 'Pause operations',       revenueMod: -0.12, expenseMod: -0.03, happiness: -2 },
+    ],
+  },
+  {
+    text: '📝 A customer left a glowing 5-star review!',
+    choices: [
+      { label: 'Share it with the team', revenueMod: +0.06, expenseMod: 0,     happiness: +6 },
+      { label: 'Keep working',           revenueMod: +0.04, expenseMod: 0,     happiness: 0  },
+    ],
+  },
+]
+
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
+
+async function getWorkSession(sender) {
+  const u = await db.getOrCreateUser(sender)
+  if (!u.work_session) return null
+  try { return JSON.parse(u.work_session) } catch { return null }
+}
+
+async function saveWorkSession(sender, session) {
+  await db.updateUser(sender, { work_session: session ? JSON.stringify(session) : null })
+}
+
+function fmtDuration(ms) {
+  if (ms <= 0) return '0s'
+  const totalSec = Math.ceil(ms / 1000)
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
+}
+
+function renderHub(wallet, workBank) {
+  const list = Object.entries(BUSINESSES).map(([num, b]) =>
+    `${num}️⃣ ${b.emoji} ${b.name}\n💵 Profit: 🍎 ${b.profitMin.toLocaleString()}–${b.profitMax.toLocaleString()}\n⏳ Shift: ${b.shiftMin}–${b.shiftMax} min`
+  ).join('\n\n')
+  return (
+    `━━━━━━━━━━━━━━━━\n🏢 𝗪𝗢𝗥𝗞 𝗛𝗨𝗕\n\n` +
+    `👛 Wallet\n🍎 ${wallet.toLocaleString()}\n\n` +
+    `🏦 Work Bank\n🍎 ${workBank.toLocaleString()}\n\n` +
+    `━━━━━━━━━━━━━━━━\n\nChoose a business to manage today.\n\n${list}\n\n` +
+    `━━━━━━━━━━━━━━━━\n\nReply with:\n.work <number>\n\nExample:\n.work 4`
+  )
+}
+
+function renderScenario(session, biz) {
+  const s = session.scenario
+  const choiceLines = s.choices.map((c, i) => `${i + 1}️⃣ ${c.label}`).join('\n\n')
+  return (
+    `━━━━━━━━━━━━━━━━\n${biz.emoji} ${biz.name.toUpperCase()}\n\n` +
+    `👥 Employees\n${session.employees}\n\n` +
+    `🏦 Work Bank\n🍎 ${session.workBankSnapshot.toLocaleString()}\n\n` +
+    `━━━━━━━━━━━━━━━━\n\n📋 Morning Report\n\n${s.text}\n\nWhat will you do?\n\n${choiceLines}\n\n` +
+    `━━━━━━━━━━━━━━━━\n\nReply with:\n${s.choices.map((_, i) => `.work ${i + 1}`).join('\n')}`
+  )
+}
+
+function renderStatus(session, biz, remainingMs) {
+  const done = remainingMs <= 0
+  const header = done ? '✅ Shift Complete' : `👥 Employees\n${session.workingEmployees}/${session.employees} Working`
+  let out =
+    `━━━━━━━━━━━━━━━━\n📊 𝗪𝗢𝗥𝗞 𝗦𝗧𝗔𝗧𝗨𝗦\n\n` +
+    `${biz.emoji} Business\n${biz.name}\n\n${header}\n\n` +
+    `📦 Orders\n${session.orders}\n\n`
+  if (done) {
+    out += `━━━━━━━━━━━━━━━━\n\n✨ Check-In Ready!\n\nReply with:\n.work collect`
+  } else {
+    out += `🕒 Next Check-In\n\n${fmtDuration(remainingMs)}\n\n━━━━━━━━━━━━━━━━`
+  }
+  return out
+}
+
+// ── End Work System config ────────────────────────────────────────────────
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 async function checkCooldown(sender, cmd, reply) {
   const remaining = await db.getCooldown(sender, cmd)
@@ -172,20 +327,139 @@ module.exports = {
   async claim(ctx) { return module.exports.daily(ctx) },
 
   // ── .work ────────────────────────────────────────────────────────────────
-  // Low-medium income, reliable source
-  async work({ reply, sender, user, pushName }) {
-    const u = user || await db.getOrCreateUser(sender, pushName)
-    if (await checkCooldown(sender, 'work', reply)) return
-    const jobs   = ['hacked a server', 'sold rare items', 'completed a bounty', 'trained disciples', 'patrolled the shadows', 'decoded encrypted files', 'delivered a package', 'repaired shadow gear', 'escorted a merchant', 'decrypted intel files']
-    const job    = jobs[Math.floor(Math.random() * jobs.length)]
-    const earned = Math.floor(Math.random() * 201) + 100  // 100–300 coins, no XP
-    await db.updateUser(sender, { wallet: (u.wallet || 0) + earned })
-    await db.setCooldown(sender, 'work', CD_WORK)
-    await db.trackCurrencyGenerated(earned)
-    console.log(`[economy] work: ${sender} +🍎 ${earned}`)
-    const workMsg = getResponse('work', 'success') ||
-      `💼 *Work Complete!*\n\nYou {job}\n💰 +🍎 {coins}\n\n⏳ Next work in *20 minutes*`
-    await reply(fillTemplate(workMsg, { job, coins: earned.toLocaleString() }))
+  // Business management system: pick a business, resolve a scenario, run a
+  // timed shift, then collect the payout. Replaces the old instant payout.
+  async work({ reply, sender, user, pushName, args }) {
+    const u   = user || await db.getOrCreateUser(sender, pushName)
+    const sub = (args[0] || '').toLowerCase()
+
+    // ── .work status ────────────────────────────────────────────────
+    if (sub === 'status') {
+      const session = await getWorkSession(sender)
+      if (!session) return reply('❌ You don\'t have an active shift. Run `.work` to pick a business.')
+      const biz = BUSINESSES[session.bizNum]
+      if (session.phase !== 'running') return reply('📋 You have a pending decision. Check your last message for the choices, or scroll up.')
+      const remaining = (session.startedAt + session.durationMs) - Date.now()
+      return reply(renderStatus(session, biz, remaining))
+    }
+
+    // ── .work collect ───────────────────────────────────────────────
+    if (sub === 'collect') {
+      const session = await getWorkSession(sender)
+      if (!session) return reply('❌ You don\'t have an active shift. Run `.work` to pick a business.')
+      if (session.phase !== 'running') return reply('📋 You still have a pending decision before your shift can start.')
+      const remaining = (session.startedAt + session.durationMs) - Date.now()
+      if (remaining > 0) return reply(`⏳ Shift still in progress. Check back in *${fmtDuration(remaining)}*.`)
+
+      const biz = BUSINESSES[session.bizNum]
+      let revenue = randInt(biz.profitMin, biz.profitMax)
+      revenue = Math.round(revenue * (1 + session.revenueMod))
+      const payroll  = Math.round(session.employees * randInt(300, 500))
+      const expenses = Math.round(revenue * (0.05 + session.expenseMod))
+      const netProfit = Math.max(0, revenue - payroll - expenses)
+
+      const freshU = await db.getOrCreateUser(sender)
+      await db.updateUser(sender, { wallet: (freshU.wallet || 0) + netProfit, work_bank: 0, work_session: null })
+      await db.trackCurrencyGenerated(netProfit)
+
+      const report =
+        `━━━━━━━━━━━━━━━━\n💼 𝗣𝗥𝗢𝗙𝗜𝗧 𝗥𝗘𝗣𝗢𝗥𝗧\n\n` +
+        `💵 Revenue\n🍎 ${revenue.toLocaleString()}\n\n` +
+        `💸 Payroll\n-🍎 ${payroll.toLocaleString()}\n\n` +
+        `📦 Expenses\n-🍎 ${expenses.toLocaleString()}\n\n` +
+        `━━━━━━━━━━━━━━━━\n\n💰 Net Profit\n+🍎 ${netProfit.toLocaleString()}\n\n` +
+        `👛 Wallet\n🍎 ${((freshU.wallet || 0) + netProfit).toLocaleString()}\n\n` +
+        `🏦 Work Bank\n🍎 0\n\n━━━━━━━━━━━━━━━━`
+      return reply(report)
+    }
+
+    // ── .work deposit <amount> ─────────────────────────────────────
+    if (sub === 'deposit') {
+      const amount = args[1]?.toLowerCase() === 'all' ? (u.wallet || 0) : parseInt(args[1])
+      if (!amount || amount <= 0) return reply('❌ Usage: `.work deposit <amount>`')
+      if (amount > (u.wallet || 0)) return reply('❌ You don\'t have that much in your Wallet.')
+      const newWallet = (u.wallet || 0) - amount
+      const newWorkBank = (u.work_bank || 0) + amount
+      await db.updateUser(sender, { wallet: newWallet, work_bank: newWorkBank })
+      return reply(
+        `━━━━━━━━━━━━━━━━\n🏦 𝗪𝗢𝗥𝗞 𝗕𝗔𝗡𝗞\n\n📥 Deposit\n+🍎 ${amount.toLocaleString()}\n\n` +
+        `👛 Wallet\n🍎 ${newWallet.toLocaleString()}\n\n🏦 Work Bank\n🍎 ${newWorkBank.toLocaleString()}\n\n━━━━━━━━━━━━━━━━`
+      )
+    }
+
+    // ── .work withdraw <amount> ────────────────────────────────────
+    if (sub === 'withdraw') {
+      const amount = args[1]?.toLowerCase() === 'all' ? (u.work_bank || 0) : parseInt(args[1])
+      if (!amount || amount <= 0) return reply('❌ Usage: `.work withdraw <amount>`')
+      if (amount > (u.work_bank || 0)) return reply('❌ You don\'t have that much in your Work Bank.')
+      const newWallet = (u.wallet || 0) + amount
+      const newWorkBank = (u.work_bank || 0) - amount
+      await db.updateUser(sender, { wallet: newWallet, work_bank: newWorkBank })
+      return reply(
+        `━━━━━━━━━━━━━━━━\n🏦 𝗪𝗢𝗥𝗞 𝗕𝗔𝗡𝗞\n\n📤 Withdraw\n-🍎 ${amount.toLocaleString()}\n\n` +
+        `👛 Wallet\n🍎 ${newWallet.toLocaleString()}\n\n🏦 Work Bank\n🍎 ${newWorkBank.toLocaleString()}\n\n━━━━━━━━━━━━━━━━`
+      )
+    }
+
+    // ── .work (no args) → show hub ─────────────────────────────────
+    const existing = await getWorkSession(sender)
+    if (!args[0]) {
+      if (existing) return reply('⚠️ You already have a business shift in progress. Use `.work status` to check it.')
+      return reply(renderHub(u.wallet || 0, u.work_bank || 0))
+    }
+
+    const choiceNum = parseInt(args[0])
+    if (isNaN(choiceNum)) return reply('❌ Usage: `.work <number>` — run `.work` to see the business list.')
+
+    // ── .work <1-5> when no session → pick a business, show scenario ─
+    if (!existing) {
+      const biz = BUSINESSES[choiceNum]
+      if (!biz) return reply('❌ Invalid business number. Run `.work` to see the list.')
+      const scenario = WORK_SCENARIOS[Math.floor(Math.random() * WORK_SCENARIOS.length)]
+      const employees = randInt(biz.empMin, biz.empMax)
+      const sickCount = Math.random() < 0.3 ? randInt(1, Math.max(1, Math.floor(employees * 0.15))) : 0
+      const session = {
+        bizNum: choiceNum,
+        phase: 'scenario',
+        employees,
+        workingEmployees: employees - sickCount,
+        workBankSnapshot: u.work_bank || 0,
+        scenario,
+        revenueMod: 0,
+        expenseMod: 0,
+        orders: 0,
+      }
+      await saveWorkSession(sender, session)
+      return reply(renderScenario(session, biz))
+    }
+
+    // ── .work <choice> when scenario is pending → resolve it, start shift ─
+    if (existing.phase === 'scenario') {
+      const biz = BUSINESSES[existing.bizNum]
+      const choice = existing.scenario.choices[choiceNum - 1]
+      if (!choice) return reply(`❌ Invalid choice. Reply with a number from 1–${existing.scenario.choices.length}.`)
+      const durationMs = randInt(biz.shiftMin, biz.shiftMax) * 60 * 1000
+      const session = {
+        ...existing,
+        phase: 'running',
+        revenueMod: choice.revenueMod,
+        expenseMod: choice.expenseMod,
+        orders: randInt(50, 300),
+        startedAt: Date.now(),
+        durationMs,
+      }
+      await saveWorkSession(sender, session)
+      return reply(
+        `✅ *${choice.label}*\n\n${biz.emoji} Your shift at *${biz.name}* has started.\n` +
+        `⏳ Check back in *${fmtDuration(durationMs)}* (or run \`.work status\`).`
+      )
+    }
+
+    if (existing.phase === 'running') {
+      return reply('⚠️ Your shift is already running. Use `.work status` to check progress, or `.work collect` once it\'s done.')
+    }
+
+    return reply('❌ Something went wrong with your work session. Try `.work status`.')
   },
 
   // ── .dig ─────────────────────────────────────────────────────────────────
