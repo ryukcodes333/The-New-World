@@ -810,7 +810,7 @@ async function removeBlacklist(groupId, word) {
 // ── Staff / moderation ─────────────────────────────────────────────────────
 
 async function getMods() {
-  return User.find({ role: { $in: ['mod', 'guardian', 'recruit', 'owner'] } }, 'phone name role').lean()
+  return User.find({ role: { $in: ['owner', 'co_owner', 'mod', 'guardian', 'recruit'] } }, 'phone name role').lean()
 }
 
 async function getBannedUsers() {
