@@ -23,7 +23,15 @@ async function buildPhoneMap(sock, jid) {
   } catch { return {} }
 }
 
-const STAFF_ROLES = { MOD: 'mod', GUARDIAN: 'guardian', CARD_MAKER: 'card_maker' }
+const STAFF_ROLES = { OWNER: 'owner', CO_OWNER: 'co_owner', MOD: 'mod', GUARDIAN: 'guardian', CARD_MAKER: 'card_maker' }
+
+// Human-readable labels for each role, shown in .mods contact cards
+const ROLE_LABELS = {
+  owner: 'Owner',
+  co_owner: 'Co-Owner',
+  mod: 'Mod',
+  guardian: 'Guardian',
+}
 
 // ── Parse + validate a typed phone number (e.g. "2349068124852") ─
 // Strips '+', spaces, dashes. Rejects anything that isn't a plausible
@@ -66,10 +74,9 @@ module.exports = {
 
   // ── .mods - sends staff as tappable contact cards ───────────────
   async mods({ sock, jid, msg, reply, isGroup }) {
-    const allStaff     = await db.getMods()
-    const modList      = allStaff.filter(u => u.role === 'mod')
-    const guardianList = allStaff.filter(u => u.role === 'guardian')
-    const combined     = [...modList, ...guardianList]
+    const allStaff  = await db.getMods()
+    const roleOrder = ['owner', 'co_owner', 'mod', 'guardian']
+    const combined  = roleOrder.flatMap(r => allStaff.filter(u => u.role === r))
 
     if (!combined.length) return reply('❌ No mods or guardians set yet.')
 
@@ -78,7 +85,7 @@ module.exports = {
 
     // Build one vCard per staff member
     const contacts = combined.map(u => {
-      const label = u.role === 'mod' ? 'Mod' : 'Guardian'
+      const label = ROLE_LABELS[u.role] || 'Staff'
       const waJid = resolveJid(u.phone, phoneToJid)
       const vcard =
         `BEGIN:VCARD\n` +
@@ -100,11 +107,25 @@ module.exports = {
   async modlist(ctx) { return module.exports.mods(ctx) },
 
   // ── Role management ───────────────────────────────────────────
+  async setrole({ reply, sock, jid, msg, args, isOwner }) {
+    if (!isOwner) return reply('*🚫 Access Denied*')
+    const phone = parseNumberArg(args[0])
+    const roleArg = (args[1] || '').toLowerCase()
+    const validRoles = { owner: 'owner', coowner: 'co_owner', 'co-owner': 'co_owner', mod: 'mod', guardian: 'guardian', member: 'member' }
+    const role = validRoles[roleArg]
+    if (!phone || !role) return reply('❌ Usage: `.setrole <number> <owner|coowner|mod|guardian|member>`\ne.g. `.setrole 2347047361093 owner`')
+    const updated = await db.updateUser(phone, { role })
+    if (!updated) return reply(`❌ Failed to save — database didn't confirm the write for @${phone}.`)
+    const label = ROLE_LABELS[role] || 'Member'
+    await sock.sendMessage(jid, { text: `✅ *ROLE SET*\n\n@${phone} is now ${role === 'member' ? 'a regular member' : `*${label}*`}.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
+  },
+
   async addmod({ reply, sock, jid, msg, args, isOwner, isMod }) {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
     const phone = parseNumberArg(args[0])
     if (!phone) return reply('❌ Usage: `.addmod <number>`\ne.g. `.addmod 2349068124852`\n(full number with country code, no + or spaces)')
-    await db.updateUser(phone, { role: STAFF_ROLES.MOD })
+    const updated = await db.updateUser(phone, { role: STAFF_ROLES.MOD })
+    if (!updated) return reply(`❌ Failed to save — database didn't confirm the write for @${phone}.`)
     await sock.sendMessage(jid, { text: `✅ *MOD ADDED*\n\n@${phone} is now a *Moderator*.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
@@ -112,7 +133,8 @@ module.exports = {
     if (!isOwner) return reply('*🚫 Access Denied*')
     const phone = parseNumberArg(args[0])
     if (!phone) return reply('❌ Usage: `.removemod <number>`\ne.g. `.removemod 2349068124852`')
-    await db.updateUser(phone, { role: 'member' })
+    const updated = await db.updateUser(phone, { role: 'member' })
+    if (!updated) return reply(`❌ Failed to save — database didn't confirm the write for @${phone}.`)
     await sock.sendMessage(jid, { text: `✅ *MOD REMOVED*\n\n@${phone} is no longer a moderator.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
@@ -120,7 +142,8 @@ module.exports = {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
     const phone = parseNumberArg(args[0])
     if (!phone) return reply('❌ Usage: `.addguardian <number>`\ne.g. `.addguardian 2349068124852`')
-    await db.updateUser(phone, { role: STAFF_ROLES.GUARDIAN })
+    const updated = await db.updateUser(phone, { role: STAFF_ROLES.GUARDIAN })
+    if (!updated) return reply(`❌ Failed to save — database didn't confirm the write for @${phone}.`)
     await sock.sendMessage(jid, { text: `✅ *GUARDIAN ADDED*\n\n@${phone} is now a *Guardian*.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
@@ -128,7 +151,8 @@ module.exports = {
     if (!isOwner && !isMod) return reply('*🚫 Access Denied*')
     const phone = parseNumberArg(args[0])
     if (!phone) return reply('❌ Usage: `.removeguardian <number>`\ne.g. `.removeguardian 2349068124852`')
-    await db.updateUser(phone, { role: 'member' })
+    const updated = await db.updateUser(phone, { role: 'member' })
+    if (!updated) return reply(`❌ Failed to save — database didn't confirm the write for @${phone}.`)
     await sock.sendMessage(jid, { text: `✅ *GUARDIAN REMOVED*\n\n@${phone} is no longer a guardian.`, mentions: [`${phone}@s.whatsapp.net`] }, { quoted: msg })
   },
 
